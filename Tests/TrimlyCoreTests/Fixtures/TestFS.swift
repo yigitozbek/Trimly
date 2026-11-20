@@ -1,12 +1,17 @@
 import Foundation
 
 enum TestFS {
-    /// Unique temporary directory with symlinks resolved (`/var` → `/private/var`) so path comparisons stay stable.
+    /// Unique temporary directory in canonical `realpath` form (`/private/var/...`). `resolvingSymlinksInPath()`
+    /// is not used because on macOS it maps `/private/var` back to `/var`.
     static func tempDir() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appending(path: "TrimlyTests-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url.resolvingSymlinksInPath()
+        guard let resolved = realpath(url.path, nil) else {
+            return url
+        }
+        defer { free(resolved) }
+        return URL(filePath: String(cString: resolved), directoryHint: .isDirectory)
     }
 
     @discardableResult
