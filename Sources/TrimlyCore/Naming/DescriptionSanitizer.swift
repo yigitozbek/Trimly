@@ -11,7 +11,9 @@ public enum DescriptionSanitizer {
     private static let datePatterns: [String] = [
         #"\d{4}[-_.]\d{2}[-_.]\d{2}"#,
         #"\d{2}[.-]\d{2}[.-]\d{4}"#,
-        #"\b(19|20)\d{6}\b"#,
+        // Compact YYYYMMDD with a valid month/day (optionally followed by HHMM[SS]); digit lookarounds instead of `\b`
+        // because models often glue it on with `_`, which is a word character. Other 8-digit numbers survive.
+        #"(?<!\d)(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])([-_ T]?\d{4}(\d{2})?)?(?!\d)"#,
         #"\b(\#(months))\s+\d{4}\b"#,
         #"\b\d{4}\s+(\#(months))\b"#
     ]

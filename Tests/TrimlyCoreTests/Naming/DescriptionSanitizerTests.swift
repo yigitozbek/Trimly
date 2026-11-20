@@ -17,9 +17,13 @@ struct DescriptionSanitizerTests {
         #expect(DescriptionSanitizer.sanitize("ekran görüntüsü toplantı notu", originalExtension: "png", categoryTerms: terms) == "Toplanti-Notu")
     }
 
-    @Test(arguments: ["Kira 14.03.2025", "Kira 20250314", "Kira 2025_03_14", "Kira Mart 2025", "Kira march 2025", "2025-03-14 Kira"])
+    @Test(arguments: ["Kira 14.03.2025", "Kira 20250314", "Kira 2025_03_14", "Kira Mart 2025", "Kira march 2025", "2025-03-14 Kira", "Kira_20250314", "Kira_20261028_0148"])
     func stripsDateFormats(_ raw: String) {
         #expect(DescriptionSanitizer.sanitize(raw, originalExtension: "pdf", categoryTerms: []) == "Kira")
+    }
+
+    @Test(.tags(.edgeCase)) func keepsNumbersThatAreNotDates() {
+        #expect(DescriptionSanitizer.sanitize("Siparis 20123456", originalExtension: "pdf", categoryTerms: []) == "Siparis-20123456")
     }
 
     @Test func stripsFillerAndKnownExtensions() {
