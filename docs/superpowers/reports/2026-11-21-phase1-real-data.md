@@ -59,11 +59,13 @@ Zayıf uzantılarda LLM kararları: `.pdf` → Belgeler 20 / Resmi-Evrak 2 / Sö
 
 ## 4. Öneriler (kullanıcı kararı)
 
-1. **LLM'in hassas bulduğu öğeler kritik sayılsın.** LLM, kurallarla yakalanmayan 7 öğeyi Sertifika-Anahtar (5, çoğu `.json` — servis hesabı anahtarı olabilir) veya Resmi-Evrak (2) olarak sınıflandırdı ve bunlar **otomatik onaylandı**. Öneri: LLM bir öğeyi `certificates` / `health` / `officialDocs` kategorisine koyarsa öğe kritik olsun (otomatik onay yok, 2. aşamada içerik yok).
+1. ✅ **Uygulandı (final review I5):** **LLM'in hassas bulduğu öğeler kritik sayılsın.** LLM, kurallarla yakalanmayan 7 öğeyi Sertifika-Anahtar (5, çoğu `.json` — servis hesabı anahtarı olabilir) veya Resmi-Evrak (2) olarak sınıflandırdı ve bunlar **otomatik onaylandı**. Artık LLM bir öğeyi `certificates` / `health` / `officialDocs` kategorisine koyarsa öğe kritik oluyor; ayrıca önizlemede anahtar materyali (`-----BEGIN`, `PRIVATE KEY`, `"private_key"` …) görülürse içerik **gönderilmiyor** ve öğe kritik oluyor.
 2. **2. aşama modeli:** 16 GB'de swap baskısı nedeniyle `stage2Model` için `gemma3:4b` (3.3 GB) veya `llama3.1` (4.9 GB) denenebilir; ya da ministral korunup 2. aşama yalnızca bilgisayar boştayken çalıştırılır.
 3. **Çıktı uzunluğu:** Ollama'ya `num_predict` (~200 token) sınırı verilirse öğe başı süre düşer (çıktı üretimi sürenin çoğu); kesilmiş JSON riski için önce ölçülmeli.
-4. Kurala eklenmedi (gözlenmedi veya tartışmalı): `.p8`/`.ppk` (kritik adayı), `.log`, `.ips`.
+4. Final review sonrası eklendi: `.p8`, `id_rsa`/`id_ed25519`, bileşik `.sql.gz` vb. kritik; `.mobileprovision` artık doğru tanınıyor. Hâlâ eklenmedi: `.ppk`, `.log`, `.ips`.
 
 ## 5. Gerçek veride uygulanmadı
 
-Planlar `~/Library/Application Support/Trimly/plans/` altında duruyor. Son plan: `2026-11-21T01-49-02_Downloads` (316 onaylı öğe). `trimly apply` **kullanıcı onayı olmadan çalıştırılmadı.**
+Planlar `~/Library/Application Support/Trimly/plans/` altında duruyor. `trimly apply` **kullanıcı onayı olmadan çalıştırılmadı.**
+
+⚠️ `2026-11-21T01-49-02_Downloads` planı final review düzeltmelerinden **önce** üretildi: içinde artık kritik sayılacak 7 otomatik onaylı öğe var. **Bu planı uygulamayın**; `trimly plan ~/Downloads` ile yeniden plan alın.
