@@ -28,7 +28,7 @@ struct RuleEngineTests {
         #expect(match("fatura-ozet.mp4").categoryID == "videos")
     }
 
-    @Test(arguments: [("song.mp3", "audio"), ("setup.dmg", "installers"), ("font.otf", "fonts"), ("design.pxd", "design"), ("map.geojson", "data"), ("main.swift", "code"), ("book.epub", "books"), ("talep.udf", "officialDocs"), ("cert.der", "certificates"), ("yedek.tar.gz", "archives")])
+    @Test(arguments: [("song.mp3", "audio"), ("setup.dmg", "installers"), ("font.otf", "fonts"), ("design.pxd", "design"), ("map.geojson", "data"), ("main.swift", "code"), ("book.epub", "books"), ("talep.udf", "officialDocs"), ("cert.der", "certificates"), ("yedek.tar.gz", "archives"), ("release.keystore", "certificates"), ("upload.jks", "certificates"), ("app-release.aab", "installers"), ("launch.jnlp", "installers"), ("sayfa.htm", "code")])
     func extensionDecisive(name: String, category: String) {
         #expect(match(name) == RuleMatch(categoryID: category, strength: .decisive, descriptionHint: nil))
     }

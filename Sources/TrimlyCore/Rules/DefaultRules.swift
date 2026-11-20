@@ -15,9 +15,9 @@ public enum DefaultRules {
         add("audio", .decisive, "mp3 m4a wav aac flac ogg aiff aif opus")
         add("archives", .weak, "zip")
         add("archives", .decisive, "rar 7z tar gz tgz bz2 xz")
-        add("installers", .decisive, "dmg pkg mpkg iso exe msi apk ipa")
+        add("installers", .decisive, "dmg pkg mpkg iso exe msi apk ipa aab jnlp")
         add("installers", .weak, "jar")
-        add("code", .decisive, "swift py js ts tsx jsx java kt c h cpp hpp m mm go rs rb php sh zsh html css scss ipynb")
+        add("code", .decisive, "swift py js ts tsx jsx java kt c h cpp hpp m mm go rs rb php sh zsh html htm css scss ipynb")
         add("data", .weak, "json")
         add("spreadsheets", .weak, "csv")
         add("data", .decisive, "geojson xml yaml yml plist tsv parquet sql sqlite db")
@@ -28,7 +28,7 @@ public enum DefaultRules {
         add("fonts", .decisive, "ttf otf woff woff2")
         add("books", .decisive, "epub mobi azw3 djvu")
         add("officialDocs", .decisive, "udf")
-        add("certificates", .decisive, "der pem cer crt p12 pfx mobileprovision kdbx env")
+        add("certificates", .decisive, "der pem cer crt p12 pfx mobileprovision kdbx env keystore jks")
         return map
     }()
 }

@@ -4,7 +4,7 @@ import Testing
 struct CriticalDetectorTests {
     let detector = CriticalDetector(settings: Settings())
 
-    @Test(arguments: ["cert.der", "dump.SQL", "iade-talebi.udf", "ISTIRAHAT RAPORLARI.pdf", "kimlik_on.jpg", "TC_Kimlik.png", "Şifreler.txt", "maaş bordrosu.xlsx"])
+    @Test(arguments: ["cert.der", "dump.SQL", "iade-talebi.udf", "ISTIRAHAT RAPORLARI.pdf", "kimlik_on.jpg", "TC_Kimlik.png", "Şifreler.txt", "maaş bordrosu.xlsx", "release.keystore", "upload.jks"])
     func critical(_ name: String) {
         #expect(detector.isCritical(.stub(name)))
     }

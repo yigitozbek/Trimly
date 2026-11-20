@@ -34,7 +34,8 @@ public struct Settings: Codable, Equatable, Sendable {
 
     // Critical
     public var criticalExtensions = [
-        "der", "pem", "cer", "key", "p12", "pfx", "mobileprovision", "env", "sql", "sqlite", "db", "kdbx", "udf"
+        "der", "pem", "cer", "key", "p12", "pfx", "mobileprovision", "env", "sql", "sqlite", "db", "kdbx", "udf",
+        "keystore", "jks"
     ]
     public var criticalKeywords = [
         "kimlik", "nufus", "pasaport", "tc", "ehliyet", "saglik", "rapor", "recete", "tahlil", "bordro", "maas",

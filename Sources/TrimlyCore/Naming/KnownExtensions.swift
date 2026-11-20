@@ -10,10 +10,10 @@ public enum KnownExtensions {
         "mp3", "m4a", "wav", "aac", "flac", "ogg", "aiff", "aif", "opus",
         // archives & installers
         "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz",
-        "dmg", "pkg", "mpkg", "iso", "exe", "msi", "apk", "ipa", "jar",
+        "dmg", "pkg", "mpkg", "iso", "exe", "msi", "apk", "ipa", "jar", "aab", "jnlp",
         // code
         "swift", "py", "js", "ts", "tsx", "jsx", "java", "kt", "c", "h", "cpp", "hpp", "m", "mm", "go", "rs", "rb", "php",
-        "sh", "zsh", "html", "css", "scss", "ipynb",
+        "sh", "zsh", "html", "htm", "css", "scss", "ipynb",
         // data & spreadsheets & presentations
         "json", "csv", "geojson", "xml", "yaml", "yml", "plist", "tsv", "parquet", "sql", "sqlite", "db",
         "xlsx", "xls", "numbers", "ods", "pptx", "ppt", "odp", "key",
@@ -22,6 +22,6 @@ public enum KnownExtensions {
         "psd", "pxd", "sketch", "fig", "ai", "xd", "afdesign", "afphoto", "indd", "eps",
         "ttf", "otf", "woff", "woff2", "epub", "mobi", "azw3", "djvu",
         // official & certificates
-        "udf", "der", "pem", "cer", "crt", "p12", "pfx", "mobileprovision", "kdbx", "env"
+        "udf", "der", "pem", "cer", "crt", "p12", "pfx", "mobileprovision", "kdbx", "env", "keystore", "jks"
     ]
 }
