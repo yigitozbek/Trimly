@@ -105,6 +105,8 @@ struct PlannerTests {
         #expect(stats.total == 8 && stats.skipped == 2 && stats.critical == 2 && stats.ready == 2 && stats.review == 2)
         #expect(stats.reviewByReason == ["weakRuleNoLLM": 1, "folder": 1])
         #expect(stats.sentToLLM == 0)
+        // screenshot, song, cert.der are decisive; kimlik.pdf is a weak-rule fallback (0.6) even though it is critical.
+        #expect(stats.decisiveRule == 3)
         #expect(stats.topReviewPatterns.first == PatternCount(pattern: ".pdf", count: 1))
     }
 

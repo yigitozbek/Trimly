@@ -5,6 +5,11 @@ struct Trimly: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "trimly",
         abstract: "Yerel yapay zeka destekli, güvenli klasör düzenleyici.",
-        version: "0.1.0"
+        discussion: "Akış: plan (önizleme) → set/approve (karar) → apply (journal'lı taşıma) → undo (geri alma).",
+        version: "0.1.0",
+        subcommands: [
+            PlanCommand.self, ReviewCommand.self, SetCommand.self, ApproveCommand.self,
+            ApplyCommand.self, UndoCommand.self, RunsCommand.self, SettingsCommand.self
+        ]
     )
 }

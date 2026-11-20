@@ -18,7 +18,8 @@ public struct PlanStats: Codable, Equatable, Sendable {
 
         total = items.count
         skipped = count { $0.status == .skipped }
-        decisiveRule = count { $0.decidedBy == .rule && $0.status != .review }
+        // Decisive rules set confidence 1.0; weak-rule fallbacks (0.6) are not decisive even when critical.
+        decisiveRule = count { $0.decidedBy == .rule && $0.confidence == 1.0 }
         sentToLLM = count { $0.decidedBy == .llm1 || $0.decidedBy == .llm2 || $0.reviewReason == .llmError }
         ready = count { $0.status == .ready }
         review = reviewItems.count
