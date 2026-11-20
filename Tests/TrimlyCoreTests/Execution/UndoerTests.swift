@@ -45,6 +45,21 @@ struct UndoerTests {
         #expect(fm.fileExists(atPath: folder.path) == false)
     }
 
+    @Test(.tags(.edgeCase)) func undoNeverDeletesAFileThatReplacedACreatedFolder() async throws {
+        let f = try PlannerFixture()
+        let (plan, _) = try await applied(f)
+        let folder = f.root.appending(path: "Ekran-Goruntuleri")
+        let moved = try #require(plan.item(shotName).target)
+        try fm.moveItem(at: moved, to: f.root.appending(path: "kurtarilan.png"))
+        try fm.removeItem(at: folder)
+        try Data("kullanici dosyasi".utf8).write(to: folder)
+
+        let summary = try Undoer(directory: f.data).undo(runID: nil)
+
+        #expect(try String(contentsOf: folder, encoding: .utf8) == "kullanici dosyasi")
+        #expect(summary.skipped.contains(SkippedEntry(path: folder.path, reason: "Klasör değil")))
+    }
+
     @Test func undoSkipsWhenTargetChanged() async throws {
         let f = try PlannerFixture()
         let (plan, _) = try await applied(f)

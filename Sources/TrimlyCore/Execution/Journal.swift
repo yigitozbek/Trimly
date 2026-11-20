@@ -5,6 +5,8 @@ import Foundation
 public struct Journal: Sendable {
     public let url: URL
     public private(set) var entries: [JournalEntry]
+    /// Byte length of the valid prefix when the last line is torn (crash/disk full mid-write); cut before the next append.
+    private var tornTailOffset: UInt64?
 
     private static var encoder: JSONEncoder {
         let encoder = JSONEncoder()
@@ -13,9 +15,10 @@ public struct Journal: Sendable {
         return encoder
     }
 
-    private init(url: URL, entries: [JournalEntry]) {
+    private init(url: URL, entries: [JournalEntry], tornTailOffset: UInt64? = nil) {
         self.url = url
         self.entries = entries
+        self.tornTailOffset = tornTailOffset
     }
 
     public static func create(at url: URL, header: JournalEntry) throws -> Journal {
@@ -30,12 +33,32 @@ public struct Journal: Sendable {
         return journal
     }
 
+    /// A torn final line is treated as never written: a torn `pending` means the move never started, and a torn
+    /// state line leaves a `pending` entry that `Recovery` resolves from disk. Corruption elsewhere still throws.
     public static func open(at url: URL) throws -> Journal {
-        let text = try String(contentsOf: url, encoding: .utf8)
-        let entries = try text.split(separator: "\n").map { line in
-            try JSONCoding.decoder.decode(JournalEntry.self, from: Data(line.utf8))
+        let data = try Data(contentsOf: url)
+        var entries: [JournalEntry] = []
+        var validLength = 0
+        var lineStart = 0
+        var torn = false
+        while lineStart < data.count {
+            let lineEnd = data[lineStart...].firstIndex(of: 0x0A) ?? data.count
+            let line = data[lineStart..<lineEnd]
+            let isLast = lineEnd >= data.count - 1
+            if line.isEmpty == false {
+                do {
+                    entries.append(try JSONCoding.decoder.decode(JournalEntry.self, from: Data(line)))
+                } catch where isLast {
+                    torn = true
+                    break
+                }
+            }
+            lineStart = lineEnd + 1
+            validLength = min(lineStart, data.count)
         }
-        return Journal(url: url, entries: entries)
+        let endsWithNewline = data.last == 0x0A
+        let cut: UInt64? = torn || (data.isEmpty == false && endsWithNewline == false) ? UInt64(validLength) : nil
+        return Journal(url: url, entries: entries, tornTailOffset: cut)
     }
 
     /// Assigns the next `seq`, writes the line, syncs it to disk and returns the `seq`.
@@ -60,6 +83,10 @@ public struct Journal: Sendable {
         data.append(0x0A)
         let handle = try FileHandle(forWritingTo: url)
         defer { try? handle.close() }
+        if let tornTailOffset {
+            try handle.truncate(atOffset: tornTailOffset)
+            self.tornTailOffset = nil
+        }
         try handle.seekToEnd()
         try handle.write(contentsOf: data)
         try handle.synchronize()

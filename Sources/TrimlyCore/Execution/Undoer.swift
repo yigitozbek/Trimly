@@ -53,27 +53,50 @@ public struct Undoer {
         let createdFolders = journal.entries.filter { $0.op == .mkdir && journal.effectiveState(of: $0.seq) == .done }
         for folder in createdFolders.reversed() where RunLog.isUndone(folder.seq, in: journal) == false {
             guard let path = folder.path else { continue }
-            if fm.fileExists(atPath: path) == false {
+            let outcome = Self.removeCreatedFolder(at: path)
+            switch outcome {
+            case .gone:
                 try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .done))
-                continue
-            }
-            var contents = (try? fm.contentsOfDirectory(atPath: path)) ?? []
-            if contents == [".DS_Store"] {
-                try fm.removeItem(atPath: (path as NSString).appendingPathComponent(".DS_Store"))
-                contents = []
-            }
-            if contents.isEmpty {
-                try fm.removeItem(atPath: path)
+            case .removed:
                 try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .done))
                 removedFolders += 1
-            } else {
-                try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .skipped, message: "Klasör boş değil"))
-                skipped.append(SkippedEntry(path: path, reason: "Klasör boş değil"))
+            case .kept(let reason):
+                try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .skipped, message: reason))
+                skipped.append(SkippedEntry(path: path, reason: reason))
             }
         }
 
         let runIDValue = journal.entries.first { $0.type == "header" }?.runID ?? url.deletingPathExtension().lastPathComponent
         return UndoSummary(runID: runIDValue, restored: restored, removedFolders: removedFolders, skipped: skipped)
+    }
+
+    private enum FolderOutcome {
+        case gone
+        case removed
+        case kept(String)
+    }
+
+    /// Never deletes user data: only a real directory (lstat, symlinks excluded) is touched, a lone `.DS_Store`
+    /// is unlinked only if it is a regular file, and `rmdir(2)` refuses anything that is not empty.
+    private static func removeCreatedFolder(at path: String) -> FolderOutcome {
+        var info = stat()
+        guard lstat(path, &info) == 0 else {
+            return .gone
+        }
+        guard info.st_mode & S_IFMT == S_IFDIR else {
+            return .kept("Klasör değil")
+        }
+        let dsStore = (path as NSString).appendingPathComponent(".DS_Store")
+        if (try? FileManager.default.contentsOfDirectory(atPath: path)) == [".DS_Store"] {
+            var dsInfo = stat()
+            if lstat(dsStore, &dsInfo) == 0, dsInfo.st_mode & S_IFMT == S_IFREG {
+                unlink(dsStore)
+            }
+        }
+        if rmdir(path) == 0 {
+            return .removed
+        }
+        return errno == ENOTEMPTY || errno == EEXIST ? .kept("Klasör boş değil") : .kept("Klasör kaldırılamadı: \(String(cString: strerror(errno)))")
     }
 
     private func journalURL(for runID: String?) throws -> URL {

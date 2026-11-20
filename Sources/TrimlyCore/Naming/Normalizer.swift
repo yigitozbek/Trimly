@@ -5,7 +5,7 @@ public enum Normalizer {
         "ç": "c", "ğ": "g", "ı": "i", "İ": "I", "ö": "o", "ş": "s", "ü": "u",
         "Ç": "C", "Ğ": "G", "Ö": "O", "Ş": "S", "Ü": "U"
     ]
-    private static let compoundExtensions = ["tar.gz", "tar.bz2", "tar.xz"]
+    private static let compressionExtensions: Set<String> = ["gz", "bz2", "xz", "zst", "lz4"]
 
     /// Folds Turkish letters and other diacritics to ASCII and drops whatever is still non-ASCII.
     public static func ascii(_ text: String) -> String {
@@ -33,14 +33,24 @@ public enum Normalizer {
         return result
     }
 
-    /// Lowercased extension, keeping `tar.gz`/`tar.bz2`/`tar.xz`; `""` when the name has no plausible extension.
+    /// Lowercased extension; a compressed known type stays compound (`tar.gz`, `sql.gz`, `csv.zst`) so the inner
+    /// type survives renaming. `""` when the name has no plausible extension (up to 20 chars: `mobileprovision`).
     public static func fullExtension(of name: String) -> String {
-        let lower = name.lowercased()
-        if let compound = compoundExtensions.first(where: { lower.hasSuffix("." + $0) && lower.count > $0.count + 1 }) {
-            return compound
+        let parts = name.lowercased().split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count >= 2, let last = parts.last, isPlausibleExtension(last) else {
+            return ""
         }
-        let ext = (lower as NSString).pathExtension
-        return ext.wholeMatch(of: /[a-z0-9]{1,10}/) != nil ? ext : ""
+        if parts.count >= 3, compressionExtensions.contains(last) {
+            let inner = parts[parts.count - 2]
+            if KnownExtensions.all.contains(inner) {
+                return "\(inner).\(last)"
+            }
+        }
+        return last
+    }
+
+    private static func isPlausibleExtension(_ text: String) -> Bool {
+        text.wholeMatch(of: /[a-z0-9]{1,20}/) != nil
     }
 
     /// Normalized name for folders and the `originalNormalized` preset; falls back to the original if nothing survives.

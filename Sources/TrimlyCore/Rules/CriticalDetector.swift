@@ -12,15 +12,25 @@ public struct CriticalDetector: Sendable {
     }
 
     public func isCritical(_ item: FileItem) -> Bool {
-        let lastExtension = item.fileExtension.split(separator: ".").last.map(String.init) ?? ""
-        if extensions.contains(lastExtension) {
+        let lower = item.name.lowercased()
+        // Every extension component counts, so `dump.sql.gz` is as sensitive as `dump.sql`.
+        let components = lower.split(separator: ".").dropFirst().map(String.init)
+        if components.contains(where: extensions.contains) {
+            return true
+        }
+        if lower.contains(/^id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$/) {
             return true
         }
         let tokens = Normalizer.ascii(item.name).lowercased().split { !($0.isLetter || $0.isNumber) }
         return tokens.contains { token in
             keywords.contains { keyword in
-                // Short keywords ("tc") must match a whole token so "etc" does not trigger them.
-                keyword.count >= 4 ? token.hasPrefix(keyword) : token == keyword
+                switch keyword.count {
+                // Long keywords also match inside glued names ("TCKimlik", "2024Bordro", "MyPassword").
+                case 5...: token.contains(keyword)
+                case 4: token.hasPrefix(keyword)
+                // Short keywords ("tc") must be a whole token so "etc" does not trigger them.
+                default: token == keyword
+                }
             }
         }
     }

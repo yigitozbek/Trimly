@@ -36,6 +36,18 @@ struct NormalizerTests {
         #expect(Normalizer.fullExtension(of: "v1.2 notes") == "")
     }
 
+    @Test func everyCriticalAndMappedExtensionSurvives() {
+        let extensions = Settings().criticalExtensions + Array(DefaultRules.extensionMap.keys)
+        #expect(extensions.filter { Normalizer.fullExtension(of: "x.\($0)") != $0 }.isEmpty)
+    }
+
+    @Test(.tags(.edgeCase)) func compressedKnownExtensionsStayCompound() {
+        #expect(Normalizer.fullExtension(of: "prod_dump.sql.gz") == "sql.gz")
+        #expect(Normalizer.fullExtension(of: "data.CSV.gz") == "csv.gz")
+        #expect(Normalizer.fullExtension(of: "backup.tar.zst") == "tar.zst")
+        #expect(Normalizer.fullExtension(of: "my.notes.gz") == "gz")
+    }
+
     @Test func normalizedFileName() {
         #expect(Normalizer.normalizedFileName("Proje Dosyaları (Eski).ZIP", isFolder: false) == "Proje-Dosyalari-Eski.zip")
         #expect(Normalizer.normalizedFileName("Kişisel v1.2", isFolder: true) == "Kisisel-V1-2")

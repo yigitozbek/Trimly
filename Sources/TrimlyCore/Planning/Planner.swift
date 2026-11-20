@@ -56,12 +56,13 @@ public struct Planner: Sendable {
                 status: .review,
                 sourceFingerprint: SourceFingerprint(size: file.sizeBytes, modifiedAt: file.modifiedAt ?? startedAt)
             )
+            // Computed for skipped items too: a manual `set` may un-skip them later.
+            item.critical = detector.isCritical(file)
             if let reason = ignore.skipReason(for: file) {
                 item.status = .skipped
                 item.skipReason = reason
                 item.classified = true
             } else {
-                item.critical = detector.isCritical(file)
                 let rule = rules.match(file)
                 if rule.strength == .decisive && file.kind != .folder {
                     Self.applyDecisive(rule, to: &item, settings: settings)
@@ -83,7 +84,7 @@ public struct Planner: Sendable {
                 for entry in pending[start..<min(start + batchSize, pending.count)] {
                     try Task.checkCancellation()
                     var item = plan.items[entry.index]
-                    let request = Self.request(for: entry.file, rule: entry.rule, critical: item.critical, settings: settings, maxCharacters: 1500, pdfPages: 1)
+                    let request = Self.preparedRequest(for: entry.file, rule: entry.rule, item: &item, settings: settings, maxCharacters: 1500, pdfPages: 1)
                     do {
                         let result = try await llm.classify(request, model: settings.stage1Model)
                         Self.applyLLM(result, decidedBy: .llm1, rule: entry.rule, to: &item, settings: settings)
@@ -124,11 +125,20 @@ public struct Planner: Sendable {
         plan.state = .ready
     }
 
-    static func request(for file: FileItem, rule: RuleMatch, critical: Bool, settings: Settings, maxCharacters: Int, pdfPages: Int) -> ClassificationRequest {
+    /// Categories whose contents are sensitive: an LLM verdict here makes the item critical (no auto-approval).
+    static let sensitiveCategoryIDs: Set<String> = ["certificates", "health", "officialDocs"]
+
+    /// Builds the LLM request. Critical items get no preview; a preview that contains key material is dropped
+    /// and marks the item critical before anything is sent.
+    static func preparedRequest(for file: FileItem, rule: RuleMatch, item: inout PlanItem, settings: Settings, maxCharacters: Int, pdfPages: Int) -> ClassificationRequest {
         let language = settings.categoryLanguage
-        let preview = critical == false && settings.contentPreview && file.kind == .file
+        var preview = item.critical == false && settings.contentPreview && file.kind == .file
             ? ContentPreview.text(for: file.url, maxCharacters: maxCharacters, pdfPages: pdfPages)
             : nil
+        if let text = preview, SecretScanner.containsSecret(text) {
+            item.critical = true
+            preview = nil
+        }
         return ClassificationRequest(
             name: file.name,
             fileExtension: file.fileExtension,
@@ -153,6 +163,9 @@ public struct Planner: Sendable {
             return
         }
         item.categoryID = category.id
+        if sensitiveCategoryIDs.contains(category.id) {
+            item.critical = true
+        }
         item.confidence = result.confidence
         item.reason = String(result.reason.prefix(160))
         item.decidedBy = decidedBy

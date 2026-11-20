@@ -61,6 +61,24 @@ struct PlannerTests {
         #expect(await mock.requests.contains { $0.request.name == "cert.der" } == false)
     }
 
+    @Test func llmSensitiveCategoryMakesItemCritical() async throws {
+        let f = try PlannerFixture(standardFiles: false)
+        try TestFS.file("notlar.md", in: f.root, contents: "toplanti notlari")
+        let mock = MockLLMProvider(defaultResult: PlannerFixture.result("Sertifika-Anahtar", "Anahtar", 0.95))
+        let plan = try await f.planner(mock).makePlan(root: f.root, useLLM: true)
+        #expect(plan.item("notlar.md").status == .critical && plan.item("notlar.md").approved == false)
+    }
+
+    @Test func secretMarkersBlockPreviewAndMarkCritical() async throws {
+        let f = try PlannerFixture(standardFiles: false)
+        try TestFS.file("servis.json", in: f.root, contents: #"{"type":"service_account","private_key":"-----BEGIN PRIVATE KEY-----\nABC"}"#)
+        let mock = MockLLMProvider(defaultResult: PlannerFixture.result("Veri", "Servis Hesabi", 0.95))
+        let plan = try await f.planner(mock).makePlan(root: f.root, useLLM: true)
+        let sent = try #require(await mock.requests.first { $0.request.name == "servis.json" })
+        #expect(sent.request.contentPreview == nil)
+        #expect(plan.item("servis.json").status == .critical && plan.item("servis.json").approved == false)
+    }
+
     @Test func providerFailureFallsBack() async throws {
         let f = try PlannerFixture()
         let mock = MockLLMProvider(defaultResult: .failure(LLMError.unreachable))

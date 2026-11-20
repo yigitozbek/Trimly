@@ -95,6 +95,36 @@ struct ReviewAndEditorTests {
         }
     }
 
+    @Test(.tags(.edgeCase)) func unskippedCriticalItemStaysCritical() async throws {
+        var f = try PlannerFixture(standardFiles: false)
+        f.settings.recentMinutes = 60
+        try TestFS.file("kimlik_on.pdf", in: f.root, modified: Date(), created: Date())
+        var plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        let id = plan.item("kimlik_on.pdf").id
+        #expect(plan.item("kimlik_on.pdf").status == .skipped)
+        try PlanEditor.set(&plan, itemID: id, categoryID: "officialDocs", description: nil, approve: nil)
+        #expect(plan.item("kimlik_on.pdf").status == .critical)
+        #expect(PlanEditor.bulkApprove(&plan, categoryID: nil, reviewReason: nil, minConfidence: nil, includeFolders: false) == 0)
+    }
+
+    @Test func reviewLeavesApprovedItemsAlone() async throws {
+        let f = try PlannerFixture()
+        var plan = try await rulesOnlyPlan(f)
+        let critical = plan.item("kimlik.pdf")
+        try PlanEditor.set(&plan, itemID: critical.id, categoryID: nil, description: nil, approve: true)
+        _ = PlanEditor.bulkApprove(&plan, categoryID: nil, reviewReason: nil, minConfidence: nil, includeFolders: false)
+        try f.store.save(plan)
+        let before = try f.store.load(id: plan.id)
+        let mock = MockLLMProvider(defaultResult: PlannerFixture.result("Saglik", "Tahlil Sonucu", 0.99))
+
+        let reviewed = try await f.planner(mock).review(planID: plan.id)
+
+        #expect(reviewed.item("kimlik.pdf").target == before.item("kimlik.pdf").target)
+        #expect(reviewed.item("download (3).pdf").target == before.item("download (3).pdf").target)
+        let asked = await mock.requests.map(\.request.name)
+        #expect(asked.contains("kimlik.pdf") == false && asked.contains("download (3).pdf") == false)
+    }
+
     @Test func bulkApproveSkipsCriticalAndFolders() throws {
         let root = try TestFS.tempDir()
         var plan = Plan.stub(root: root, items: [

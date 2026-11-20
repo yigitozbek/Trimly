@@ -9,7 +9,7 @@ public enum KnownExtensions {
         "mp4", "mov", "m4v", "avi", "mkv", "webm", "wmv", "flv", "3gp",
         "mp3", "m4a", "wav", "aac", "flac", "ogg", "aiff", "aif", "opus",
         // archives & installers
-        "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz",
+        "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "zst", "lz4",
         "dmg", "pkg", "mpkg", "iso", "exe", "msi", "apk", "ipa", "jar", "aab", "jnlp",
         // code
         "swift", "py", "js", "ts", "tsx", "jsx", "java", "kt", "c", "h", "cpp", "hpp", "m", "mm", "go", "rs", "rb", "php",
@@ -22,6 +22,6 @@ public enum KnownExtensions {
         "psd", "pxd", "sketch", "fig", "ai", "xd", "afdesign", "afphoto", "indd", "eps",
         "ttf", "otf", "woff", "woff2", "epub", "mobi", "azw3", "djvu",
         // official & certificates
-        "udf", "der", "pem", "cer", "crt", "p12", "pfx", "mobileprovision", "kdbx", "env", "keystore", "jks"
+        "udf", "der", "pem", "cer", "crt", "p12", "pfx", "mobileprovision", "kdbx", "env", "keystore", "jks", "p8"
     ]
 }

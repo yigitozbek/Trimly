@@ -12,7 +12,10 @@ extension Planner {
         case .ready: break
         }
         let settings = plan.settingsSnapshot
-        let candidates = plan.items.indices.filter { plan.items[$0].status == .review || plan.items[$0].status == .critical }
+        // Approved items are the user's decision; a second opinion must not silently change their destination.
+        let candidates = plan.items.indices.filter {
+            (plan.items[$0].status == .review || plan.items[$0].status == .critical) && plan.items[$0].approved == false
+        }
         guard let provider, settings.llmEnabled, candidates.isEmpty == false else {
             return plan
         }
@@ -31,7 +34,7 @@ extension Planner {
             }
             var item = plan.items[index]
             let rule = rules.match(file)
-            let request = Self.request(for: file, rule: rule, critical: item.critical, settings: settings, maxCharacters: 4000, pdfPages: 2)
+            let request = Self.preparedRequest(for: file, rule: rule, item: &item, settings: settings, maxCharacters: 4000, pdfPages: 2)
             do {
                 let result = try await provider.classify(request, model: settings.stage2Model)
                 guard settings.category(forFolderName: result.targetFolder) != nil else {
