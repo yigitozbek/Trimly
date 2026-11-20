@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Trimly}",
+            "name": "Debug trimly",
+            "target": "trimly",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug trimly"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Trimly}",
+            "name": "Release trimly",
+            "target": "trimly",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release trimly"
+        }
+    ]
+}
