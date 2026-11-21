@@ -22,6 +22,8 @@ public struct FileItem: Codable, Equatable, Sendable {
     /// 0 for the root's direct children.
     public let depth: Int
     public let parentRelativePath: String?
+    /// Finder tags, in Finder's order.
+    public let finderTags: [String]
 
     public init(
         url: URL,
@@ -42,7 +44,8 @@ public struct FileItem: Codable, Equatable, Sendable {
         isLink: Bool = false,
         relativePath: String? = nil,
         depth: Int = 0,
-        parentRelativePath: String? = nil
+        parentRelativePath: String? = nil,
+        finderTags: [String] = []
     ) {
         self.url = url
         self.name = name
@@ -63,5 +66,6 @@ public struct FileItem: Codable, Equatable, Sendable {
         self.relativePath = relativePath ?? name
         self.depth = depth
         self.parentRelativePath = parentRelativePath
+        self.finderTags = finderTags
     }
 }

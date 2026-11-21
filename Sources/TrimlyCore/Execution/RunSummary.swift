@@ -5,11 +5,14 @@ public struct RunSummary: Sendable {
     public let moved: Int
     public let skipped: [SkippedEntry]
     public let failed: [SkippedEntry]
+    /// Items that got tags added.
+    public let tagged: Int
 
-    public init(runID: String, moved: Int, skipped: [SkippedEntry], failed: [SkippedEntry]) {
+    public init(runID: String, moved: Int, skipped: [SkippedEntry], failed: [SkippedEntry], tagged: Int = 0) {
         self.runID = runID
         self.moved = moved
         self.skipped = skipped
         self.failed = failed
+        self.tagged = tagged
     }
 }

@@ -5,4 +5,5 @@ public enum JournalOp: String, Codable, Sendable {
     case move
     case undo
     case rmdir
+    case tag
 }

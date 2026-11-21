@@ -17,6 +17,9 @@ public struct JournalEntry: Codable, Equatable, Sendable {
     public var root: String?
     public var at: Date?
     public var message: String?
+    /// `tag`: the full tag list written, and the list it replaced.
+    public var tags: [String]?
+    public var previousTags: [String]?
 
     public init(
         seq: Int,
@@ -33,7 +36,9 @@ public struct JournalEntry: Codable, Equatable, Sendable {
         planID: String? = nil,
         root: String? = nil,
         at: Date? = nil,
-        message: String? = nil
+        message: String? = nil,
+        tags: [String]? = nil,
+        previousTags: [String]? = nil
     ) {
         self.seq = seq
         self.type = type
@@ -50,6 +55,8 @@ public struct JournalEntry: Codable, Equatable, Sendable {
         self.root = root
         self.at = at
         self.message = message
+        self.tags = tags
+        self.previousTags = previousTags
     }
 
     /// A pure state-change line (`{"seq":3,"ref":2,"state":"done"}`).

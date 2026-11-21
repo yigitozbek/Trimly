@@ -15,7 +15,8 @@ public struct TargetResolver {
 
     public func folderURL(categoryFolder: String, date: Date) -> URL {
         let base = switch settings.targetMode {
-        case .inPlace: root
+        // `tagOnly` never asks for a target; the root keeps the resolver total.
+        case .inPlace, .tagOnly: root
         case .central: URL(filePath: (settings.archiveRoot as NSString).expandingTildeInPath, directoryHint: .isDirectory)
         }
         var folder = base.appending(path: categoryFolder, directoryHint: .isDirectory)

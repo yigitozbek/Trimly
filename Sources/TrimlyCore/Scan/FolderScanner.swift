@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 public struct FolderScanner: Sendable {
     private static let keys: Set<URLResourceKey> = [
         .isDirectoryKey, .isPackageKey, .isSymbolicLinkKey, .isAliasFileKey, .fileSizeKey,
-        .creationDateKey, .contentModificationDateKey, .contentTypeKey
+        .creationDateKey, .contentModificationDateKey, .contentTypeKey, .tagNamesKey
     ]
     private static let folderSampleLimit = 20
 
@@ -110,7 +110,8 @@ public struct FolderScanner: Sendable {
             isLink: isLink,
             relativePath: relativePath,
             depth: depth,
-            parentRelativePath: parent
+            parentRelativePath: parent,
+            finderTags: values.tagNames ?? []
         )
     }
 

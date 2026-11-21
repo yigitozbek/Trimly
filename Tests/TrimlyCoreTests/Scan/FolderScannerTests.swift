@@ -125,4 +125,10 @@ struct FolderScannerTests {
         let tree = try FolderScanner().scanTree(root: root, maxDepth: 3, limit: 5) { _ in true }
         #expect(tree.truncated && tree.descended.isEmpty)
     }
+
+    @Test func scannerReadsFinderTags() throws {
+        let root = try TestFS.tempDir()
+        try TestFS.setTags(["Proje X", "Fatura"], on: try TestFS.file("a.pdf", in: root))
+        #expect(try FolderScanner().scan(root: root).first?.finderTags == ["Proje X", "Fatura"])
+    }
 }

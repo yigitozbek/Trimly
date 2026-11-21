@@ -32,6 +32,15 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
     public let modeLock: String?
     /// Folders only: the scan listed its contents (false beyond the depth limit or the item limit).
     public let listed: Bool
+    /// Finder tags the item had when it was planned.
+    public let existingTags: [String]
+    /// Category tags the run adds (never removes any); empty when nothing is added.
+    public var tagsToAdd: [String]
+
+    /// Applying it would move the item or add tags to it.
+    public var hasAction: Bool {
+        target != nil || tagsToAdd.isEmpty == false
+    }
 
     public init(
         id: String,
@@ -59,7 +68,9 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         folderMode: FolderMode? = nil,
         covered: Bool = false,
         modeLock: String? = nil,
-        listed: Bool = false
+        listed: Bool = false,
+        existingTags: [String] = [],
+        tagsToAdd: [String] = []
     ) {
         self.id = id
         self.name = name
@@ -87,6 +98,8 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         self.covered = covered
         self.modeLock = modeLock
         self.listed = listed
+        self.existingTags = existingTags
+        self.tagsToAdd = tagsToAdd
     }
 
     /// Plans written before nested scanning lack the tree fields; they decode as top-level items.
@@ -118,5 +131,7 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         covered = try c.decodeIfPresent(Bool.self, forKey: .covered) ?? false
         modeLock = try c.decodeIfPresent(String.self, forKey: .modeLock)
         listed = try c.decodeIfPresent(Bool.self, forKey: .listed) ?? false
+        existingTags = try c.decodeIfPresent([String].self, forKey: .existingTags) ?? []
+        tagsToAdd = try c.decodeIfPresent([String].self, forKey: .tagsToAdd) ?? []
     }
 }

@@ -23,6 +23,9 @@ public enum Recovery {
             case .rmdir:
                 guard let path = entry.path else { continue }
                 completed = fm.fileExists(atPath: path) == false
+            case .tag:
+                // Resolved in phase 3b Task 4 (tags are not journaled before then).
+                continue
             case nil:
                 continue
             }

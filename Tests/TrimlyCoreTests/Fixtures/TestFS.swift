@@ -33,6 +33,12 @@ enum TestFS {
     }
 
     @discardableResult
+    /// Sets the Finder tags of a file or folder (replacing any it had). `NSURL`: the `URLResourceValues.tagNames`
+    /// setter needs macOS 26.
+    static func setTags(_ tags: [String], on url: URL) throws {
+        try (url as NSURL).setResourceValue(tags, forKey: .tagNamesKey)
+    }
+
     static func folder(_ name: String, in dir: URL) throws -> URL {
         let url = dir.appending(path: name, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

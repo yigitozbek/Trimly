@@ -29,6 +29,12 @@ public struct Settings: Codable, Equatable, Sendable {
     /// After a run, remove folders it emptied (only empty ones; journaled and recreated on undo).
     public var removeEmptyFolders = false
 
+    // Finder tags
+    /// Moved items get their category's tag (`Fatura`); existing tags are kept.
+    public var addCategoryTags = true
+    /// Finder tag → category id. Matched ignoring case and accents; unknown category ids are ignored.
+    public var tagMappings: [String: String] = [:]
+
     // Ignore
     public var ignoreHidden = true
     public var ignoreApps = true
@@ -75,6 +81,8 @@ public struct Settings: Codable, Equatable, Sendable {
         scanDepth = try c.decodeIfPresent(Int.self, forKey: .scanDepth) ?? d.scanDepth
         distributeThreshold = try c.decodeIfPresent(Double.self, forKey: .distributeThreshold) ?? d.distributeThreshold
         removeEmptyFolders = try c.decodeIfPresent(Bool.self, forKey: .removeEmptyFolders) ?? d.removeEmptyFolders
+        addCategoryTags = try c.decodeIfPresent(Bool.self, forKey: .addCategoryTags) ?? d.addCategoryTags
+        tagMappings = try c.decodeIfPresent([String: String].self, forKey: .tagMappings) ?? d.tagMappings
         ignoreHidden = try c.decodeIfPresent(Bool.self, forKey: .ignoreHidden) ?? d.ignoreHidden
         ignoreApps = try c.decodeIfPresent(Bool.self, forKey: .ignoreApps) ?? d.ignoreApps
         recentMinutes = try c.decodeIfPresent(Int.self, forKey: .recentMinutes) ?? d.recentMinutes
