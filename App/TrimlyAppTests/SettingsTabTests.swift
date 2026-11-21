@@ -10,9 +10,11 @@ struct SettingsTabTests {
         #expect(SettingsTab.storageKey == "settingsTab")
     }
 
-    @Test func openerWritesTabBeforeShowingSettings() {
+    @Test func selectWritesTabForDeepLink() {
         UserDefaults.standard.removeObject(forKey: SettingsTab.storageKey)
-        SettingsOpener.open(.tags)
+        SettingsOpener.select(.ignore)
+        #expect(UserDefaults.standard.string(forKey: SettingsTab.storageKey) == SettingsTab.ignore.rawValue)
+        SettingsOpener.select(.tags)
         #expect(UserDefaults.standard.string(forKey: SettingsTab.storageKey) == SettingsTab.tags.rawValue)
     }
 }

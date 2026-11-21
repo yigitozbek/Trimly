@@ -20,9 +20,7 @@ struct RecentSkipBanner: View {
                     }
                 }
                 Spacer(minLength: 8)
-                Button("Hariç tutma…") {
-                    SettingsOpener.open(.ignore)
-                }
+                OpenSettingsButton(title: "Hariç tutma…", tab: .ignore)
             }
             .padding(10)
             .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))

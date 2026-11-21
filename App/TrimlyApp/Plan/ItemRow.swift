@@ -7,6 +7,7 @@ struct ItemRow: View {
     let item: PlanItem
     let session: PlanSession
     let isEditable: Bool
+    @Environment(\.openSettings) private var openSettings
     @State private var isApproved: Bool
     @State private var categoryID: String
     @State private var descriptionText: String
@@ -39,7 +40,7 @@ struct ItemRow: View {
                     .foregroundStyle(.tertiary)
                 if item.existingTags.isEmpty == false {
                     Button {
-                        SettingsOpener.open(.tags)
+                        openSettingsTab(.tags)
                     } label: {
                         Text("Etiketler: " + item.existingTags.joined(separator: ", "))
                             .font(.caption)
@@ -69,7 +70,7 @@ struct ItemRow: View {
             }
             .disabled(FinderReveal.url(for: item) == nil)
             Button("Etiket eşlemeleri…", systemImage: "tag") {
-                SettingsOpener.open(.tags)
+                openSettingsTab(.tags)
             }
             Button("Önizle", systemImage: "eye") {
                 QuickLookPresenter.shared.present(item: item)
@@ -141,5 +142,10 @@ struct ItemRow: View {
     private func submitDescription() {
         guard descriptionText != (item.description ?? "") else { return }
         session.setDescription(descriptionText, for: item.id)
+    }
+
+    private func openSettingsTab(_ tab: SettingsTab) {
+        SettingsOpener.select(tab)
+        openSettings()
     }
 }
