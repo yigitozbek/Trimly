@@ -1,7 +1,8 @@
 import Foundation
 
 /// Manual decisions on a ready plan. The only way a critical item becomes approved is an explicit
-/// per-item `set(... approve: true)`; bulk approval never includes critical items.
+/// per-item `set(... approve: true)`; bulk approval never includes critical items or trash candidates
+/// (those may still be approved one-by-one to organize instead of trashing).
 public enum PlanEditor {
     public static func set(_ plan: inout Plan, itemID: String, categoryID: String?, description: String?, approve: Bool?) throws {
         switch plan.state {
@@ -51,6 +52,7 @@ public enum PlanEditor {
             let item = plan.items[index]
             guard item.approved == false,
                   item.critical == false,
+                  item.trashReason == nil,
                   carryingCritical.contains(item.id) == false,
                   item.status != .critical,
                   item.status != .skipped,
@@ -99,13 +101,14 @@ public enum PlanEditor {
         let prefix = folder.relativePath + "/"
         for child in plan.items.indices where plan.items[child].relativePath.hasPrefix(prefix) && plan.items[child].covered == false {
             let item = plan.items[child]
-            plan.items[child].approved = item.status == .ready && item.critical == false && item.kind != .folder && item.target != nil
+            plan.items[child].approved = item.status == .ready && item.critical == false && item.trashReason == nil
+                && item.kind != .folder && item.target != nil
         }
     }
 
     /// Sets approval for the given items and returns how many changed (e.g. "select all" over visible rows).
-    /// Approving never includes critical, skipped or action-less items, nor kept folders carrying a critical item;
-    /// un-approving is always allowed.
+    /// Approving never includes critical, skipped, trash-candidate, or action-less items, nor kept folders
+    /// carrying a critical item; un-approving is always allowed.
     public static func setApproval(_ plan: inout Plan, itemIDs: Set<String>, approved: Bool) -> Int {
         guard plan.state == .ready else {
             return 0
@@ -117,7 +120,8 @@ public enum PlanEditor {
             guard item.approved != approved, item.status != .skipped else {
                 continue
             }
-            if approved, item.critical || item.status == .critical || item.hasAction == false || carryingCritical.contains(item.id) {
+            if approved, item.critical || item.status == .critical || item.trashReason != nil
+                || item.hasAction == false || carryingCritical.contains(item.id) {
                 continue
             }
             plan.items[index].approved = approved

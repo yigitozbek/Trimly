@@ -26,7 +26,8 @@ extension PlanItem {
         skipReason: String? = nil,
         modeLock: String? = nil,
         listed: Bool = true,
-        existingTags: [String] = []
+        existingTags: [String] = [],
+        trashReason: TrashReason? = nil
     ) -> PlanItem {
         let relativePath = parent.map { "\($0.relativePath)/\(name)" } ?? name
         return PlanItem(
@@ -52,7 +53,8 @@ extension PlanItem {
             folderMode: folderMode,
             modeLock: modeLock,
             listed: kind == .folder && listed,
-            existingTags: existingTags
+            existingTags: existingTags,
+            trashReason: trashReason
         )
     }
 }

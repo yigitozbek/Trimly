@@ -219,6 +219,29 @@ struct ReviewAndEditorTests {
         #expect(plan.item("kimlik.pdf").approved == false && plan.item("x.tmp").approved == false)
     }
 
+    @Test func bulkAndSetApprovalSkipTrashCandidates() throws {
+        let root = try TestFS.tempDir()
+        var plan = Plan.stub(root: root, items: [
+            .stub("keep.pdf", in: root, category: "documents"),
+            .stub("Setup.dmg", in: root, category: "installers", trashReason: .oldInstaller(days: 30)),
+            .stub("copy.pdf", in: root, category: "documents", trashReason: .duplicate(of: "/x/keep.pdf"))
+        ])
+        TargetAssigner.assign(&plan)
+        #expect(PlanEditor.bulkApprove(&plan, categoryID: nil, reviewReason: nil, minConfidence: nil, includeFolders: false) == 1)
+        #expect(plan.item("keep.pdf").approved)
+        #expect(plan.item("Setup.dmg").approved == false && plan.item("copy.pdf").approved == false)
+        if let i = plan.items.firstIndex(where: { $0.name == "keep.pdf" }) {
+            plan.items[i].approved = false
+        }
+        let ids = Set(plan.items.map(\.id))
+        #expect(PlanEditor.setApproval(&plan, itemIDs: ids, approved: true) == 1)
+        #expect(plan.item("keep.pdf").approved)
+        #expect(plan.item("Setup.dmg").approved == false)
+        // Per-item set still allows organize instead of trash.
+        try PlanEditor.set(&plan, itemID: plan.item("Setup.dmg").id, categoryID: nil, description: nil, approve: true)
+        #expect(plan.item("Setup.dmg").approved)
+    }
+
     @Test func setApprovalRejectsIncludingCritical() throws {
         let root = try TestFS.tempDir()
         var plan = Plan.stub(root: root, items: [
