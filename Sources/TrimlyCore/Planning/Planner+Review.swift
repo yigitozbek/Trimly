@@ -16,7 +16,8 @@ extension Planner {
         let candidates = plan.items.indices.filter {
             (plan.items[$0].status == .review || plan.items[$0].status == .critical) && plan.items[$0].approved == false
         }
-        guard let provider, settings.llmEnabled, candidates.isEmpty == false else {
+        // Running stage 2 is an explicit request, so it works even if the plan was made with the LLM disabled.
+        guard let provider, candidates.isEmpty == false else {
             return plan
         }
 

@@ -21,6 +21,15 @@ struct ReviewAndEditorTests {
         #expect(events.dropFirst().allSatisfy { $0.hasPrefix("classify:ministral-3:14b:") })
     }
 
+    @Test func reviewRunsEvenIfPlanWasMadeWithLLMDisabled() async throws {
+        var f = try PlannerFixture()
+        f.settings.llmEnabled = false
+        let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        let mock = MockLLMProvider(defaultResult: PlannerFixture.result("Faturalar", "Enerjisa Ocak", 0.9))
+        let reviewed = try await f.planner(mock).review(planID: plan.id)
+        #expect(reviewed.item("download (3).pdf").decidedBy == .llm2)
+    }
+
     @Test func reviewPromotesConfidentItems() async throws {
         let f = try PlannerFixture()
         let plan = try await rulesOnlyPlan(f)

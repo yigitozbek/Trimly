@@ -13,10 +13,12 @@ final class PlanSession {
     private(set) var phase = PlanPhase.idle
     private(set) var banner: String?
     private(set) var errorMessage: String?
+    private(set) var lastRun: RunSummary?
+    private(set) var lastUndo: UndoSummary?
     var searchText = ""
     @ObservationIgnored private var started = false
     @ObservationIgnored private var scanTask: Task<Void, Never>?
-    @ObservationIgnored private(set) var lastHealth: ProviderHealth?
+    private(set) var lastHealth: ProviderHealth?
 
     init(root: URL, environment: AppEnvironment) {
         self.root = root
@@ -64,12 +66,29 @@ final class PlanSession {
         plan?.state == .applied
     }
 
+    /// Stage 2 needs Ollama with the stage-2 model (as of the last health check) and something to look at.
+    var stage2Available: Bool {
+        guard let lastHealth, isReadOnly == false, stage2CandidateCount > 0 else { return false }
+        return LLMReadiness.problem(lastHealth, model: environment.loadSettings().stage2Model) == nil
+    }
+
+    var applySummary: ApplySummary {
+        guard let plan else { return ApplySummary(count: 0, byCategory: [], criticalApproved: []) }
+        let approved = plan.items.filter { $0.approved && $0.status != .skipped && $0.target != nil }
+        let settings = plan.settingsSnapshot
+        let byCategory = Dictionary(grouping: approved, by: { $0.categoryID ?? "other" })
+            .map { CategoryCount(title: settings.category(id: $0.key)?.folder.value(settings.categoryLanguage) ?? $0.key, count: $0.value.count) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.title < $1.title }
+        return ApplySummary(count: approved.count, byCategory: byCategory, criticalApproved: approved.filter(\.critical))
+    }
+
     // MARK: Scanning
 
     /// Loads a recent ready plan for this folder (e.g. started in the CLI) or scans. Calling it again is a no-op.
     func start() async {
         guard started == false else { return }
         started = true
+        await refreshHealth()
         if let existing = try? store.latestReady(root: root, now: environment.now()) {
             plan = existing
             return
@@ -91,14 +110,21 @@ final class PlanSession {
         scanTask?.cancel()
     }
 
+    /// Asks Ollama for its state when the LLM is enabled; a disabled LLM is never contacted.
+    func refreshHealth() async {
+        let settings = environment.loadSettings()
+        lastHealth = settings.llmEnabled ? await environment.makeProvider(settings).health() : nil
+    }
+
     private func scan() async {
         let settings = environment.loadSettings()
         let provider = environment.makeProvider(settings)
         var useLLM = settings.llmEnabled
         if useLLM {
-            let health = await provider.health()
-            lastHealth = health
-            if let problem = LLMReadiness.problem(health, model: settings.stage1Model) {
+            if lastHealth == nil {
+                await refreshHealth()
+            }
+            if let problem = LLMReadiness.problem(lastHealth ?? ProviderHealth(reachable: false, availableModels: []), model: settings.stage1Model) {
                 banner = "\(problem); yalnızca kurallar kullanılıyor."
                 useLLM = false
             }
@@ -138,6 +164,51 @@ final class PlanSession {
     func follow(_ updates: AsyncStream<PlanProgress>, as phaseFor: (PlanProgress) -> PlanPhase) async {
         for await update in updates where phase != .idle {
             phase = phaseFor(update)
+        }
+    }
+
+    // MARK: Stage 2, apply, undo
+
+    func runStage2() async {
+        guard let current = plan, stage2Available else { return }
+        let settings = environment.loadSettings()
+        let (progress, continuation) = AsyncStream.makeStream(of: PlanProgress.self)
+        let planner = Planner(settings: settings, store: store, provider: environment.makeProvider(settings), now: environment.now) { update in
+            continuation.yield(update)
+        }
+        phase = .reviewing(nil)
+        async let progressUpdates: Void = follow(progress) { .reviewing($0) }
+        do {
+            plan = try await planner.review(planID: current.id)
+            errorMessage = nil
+        } catch {
+            errorMessage = UserMessage.text(for: error)
+        }
+        phase = .idle
+        continuation.finish()
+        await progressUpdates
+    }
+
+    func apply() async {
+        guard let current = plan, isReadOnly == false, approvedCount > 0 else { return }
+        phase = .applying
+        do {
+            let run = try await Executor(directory: environment.directory, now: environment.now).apply(planID: current.id)
+            lastRun = run
+            plan = try store.load(id: current.id)
+            phase = .applied(runID: run.runID)
+        } catch {
+            phase = .failed(UserMessage.text(for: error))
+        }
+    }
+
+    func undoLastApply() async {
+        guard let run = lastRun else { return }
+        do {
+            lastUndo = try await Undoer(directory: environment.directory).undo(runID: run.runID)
+            errorMessage = nil
+        } catch {
+            errorMessage = UserMessage.text(for: error)
         }
     }
 
