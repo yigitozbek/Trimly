@@ -20,6 +20,8 @@ final class PlanSession {
     private(set) var revision = 0
     private(set) var cancelledWithCheckpoint = false
     var searchText = ""
+    /// When true, "Zaten düzenli" / "Zaten etiketli" skips are omitted from Atlanan (default: hide completed work).
+    var hideAlreadyOrganized = true
     @ObservationIgnored private var settings: Settings
     @ObservationIgnored private var started = false
     @ObservationIgnored private var activeTask: Task<Void, Never>?
@@ -100,17 +102,34 @@ final class PlanSession {
             .sorted { $0.title < $1.title }
     }
 
-    var skippedGroups: [SkipGroup] {
+    /// All skipped groups (ignores `hideAlreadyOrganized`).
+    var allSkippedGroups: [SkipGroup] {
         Dictionary(grouping: matching { $0.status == .skipped }, by: { $0.skipReason ?? "?" })
             .map { SkipGroup(id: $0.key, items: $0.value) }
             .sorted { $0.id < $1.id }
+    }
+
+    /// Skipped groups shown in the list; may omit already-organized reasons when the filter is on.
+    var skippedGroups: [SkipGroup] {
+        guard hideAlreadyOrganized else { return allSkippedGroups }
+        return allSkippedGroups.filter { Self.isAlreadyOrganizedSkip($0.id) == false }
+    }
+
+    /// How many skipped items are hidden by the already-organized filter.
+    var hiddenAlreadyOrganizedCount: Int {
+        guard hideAlreadyOrganized else { return 0 }
+        return allSkippedGroups.filter { Self.isAlreadyOrganizedSkip($0.id) }.reduce(0) { $0 + $1.items.count }
+    }
+
+    static func isAlreadyOrganizedSkip(_ reason: String?) -> Bool {
+        reason == "Zaten düzenli" || reason == "Zaten etiketli"
     }
 
     /// Items skipped for "Son N dakikada değişti" — explains empty-looking plans after fresh downloads.
     var recentSkipCount: Int {
         let minutes = plan?.settingsSnapshot.recentMinutes ?? settings.recentMinutes
         let prefix = "Son \(minutes) dakikada"
-        return skippedGroups.filter { $0.id.hasPrefix(prefix) }.reduce(0) { $0 + $1.items.count }
+        return allSkippedGroups.filter { $0.id.hasPrefix(prefix) }.reduce(0) { $0 + $1.items.count }
     }
 
     /// True when recent skips are ≥ 80% of non-covered items (banner should push Ignore settings).

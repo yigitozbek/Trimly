@@ -1,21 +1,34 @@
 import SwiftUI
 
 struct SkippedSection: View {
-    let session: PlanSession
+    @Bindable var session: PlanSession
 
     var body: some View {
-        if session.skippedGroups.isEmpty == false {
+        let visible = session.skippedGroups
+        let hidden = session.hiddenAlreadyOrganizedCount
+        if visible.isEmpty == false || hidden > 0 {
             Section {
-                DisclosureGroup("Atlanan (\(session.skippedGroups.map(\.items.count).reduce(0, +)))") {
-                    ForEach(session.skippedGroups) { group in
-                        DisclosureGroup("\(group.id) (\(group.items.count))") {
-                            ForEach(group.items) { item in
-                                Text(item.name)
-                                    .foregroundStyle(.secondary)
+                if visible.isEmpty == false {
+                    DisclosureGroup("Atlanan (\(visible.map(\.items.count).reduce(0, +)))") {
+                        ForEach(visible) { group in
+                            DisclosureGroup("\(group.id) (\(group.items.count))") {
+                                ForEach(group.items) { item in
+                                    Text(item.name)
+                                        .foregroundStyle(.secondary)
+                                        .tag(item.id)
+                                }
                             }
                         }
                     }
                 }
+                Toggle(isOn: $session.hideAlreadyOrganized) {
+                    if hidden > 0 {
+                        Text("Zaten düzenli olanları gizle (\(hidden))")
+                    } else {
+                        Text("Zaten düzenli olanları gizle")
+                    }
+                }
+                .help("Daha önce Trimly ile düzenlenmiş (Zaten düzenli / Zaten etiketli) öğeleri Atlanan listesinden çıkarır.")
             }
         }
     }
