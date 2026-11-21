@@ -57,6 +57,12 @@ struct ItemRow: View {
             }
         }
         .padding(.vertical, 2)
+        .contextMenu {
+            Button("Finder'da göster", systemImage: "folder") {
+                FinderReveal.reveal(item: item)
+            }
+            .disabled(FinderReveal.url(for: item) == nil)
+        }
         .onChange(of: isApproved) { _, approved in
             guard approved != item.approved else { return }
             session.setApproved(approved, for: item.id)

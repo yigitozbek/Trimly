@@ -31,5 +31,11 @@ struct TrashRow: View {
                 .disabled(session.isBusy || session.isReadOnly)
             }
         }
+        .contextMenu {
+            Button("Finder'da göster", systemImage: "folder") {
+                FinderReveal.reveal(item: item)
+            }
+            .disabled(FinderReveal.url(for: item) == nil)
+        }
     }
 }

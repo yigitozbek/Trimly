@@ -64,7 +64,11 @@ struct ResultSheet: View {
     }
 
     private func revealInFinder() {
-        NSWorkspace.shared.activateFileViewerSelecting([session.root])
+        let destinations = session.plan?.items.compactMap { item -> URL? in
+            guard item.approved, let target = item.target else { return nil }
+            return target
+        } ?? []
+        FinderReveal.reveal(FinderReveal.resultURLs(destinations: destinations, root: session.root))
     }
 
     private func close() {
