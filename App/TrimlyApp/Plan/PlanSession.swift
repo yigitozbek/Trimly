@@ -106,6 +106,21 @@ final class PlanSession {
             .sorted { $0.id < $1.id }
     }
 
+    /// Items skipped for "Son N dakikada değişti" — explains empty-looking plans after fresh downloads.
+    var recentSkipCount: Int {
+        let minutes = plan?.settingsSnapshot.recentMinutes ?? settings.recentMinutes
+        let prefix = "Son \(minutes) dakikada"
+        return skippedGroups.filter { $0.id.hasPrefix(prefix) }.reduce(0) { $0 + $1.items.count }
+    }
+
+    /// True when recent skips are ≥ 80% of non-covered items (banner should push Ignore settings).
+    var recentSkipsDominate: Bool {
+        guard let plan, recentSkipCount > 0 else { return false }
+        let total = plan.items.filter { $0.covered == false }.count
+        guard total > 0 else { return false }
+        return Double(recentSkipCount) / Double(total) >= 0.8
+    }
+
     /// Files marked as trash candidates that have not been sent to the Trash yet.
     var trashCandidates: [PlanItem] {
         matching { $0.trashReason != nil && $0.trashedRunID == nil }

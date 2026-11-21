@@ -33,8 +33,14 @@ struct PlanContent: View {
             return .handled
         }
         .safeAreaInset(edge: .top) {
-            if let banner = session.banner {
-                BannerView(text: banner)
+            VStack(spacing: 0) {
+                if let banner = session.banner {
+                    BannerView(text: banner)
+                }
+                RecentSkipBanner(session: session)
+                    .padding(.horizontal, 12)
+                    .padding(.top, session.banner == nil ? 8 : 0)
+                    .padding(.bottom, session.recentSkipCount > 0 ? 8 : 0)
             }
         }
         .safeAreaInset(edge: .bottom) {
