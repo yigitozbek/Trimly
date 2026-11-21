@@ -20,12 +20,16 @@ extension PlanItem {
         critical: Bool = false,
         approved: Bool = false,
         confidence: Double? = nil,
-        reviewReason: ReviewReason? = nil
+        reviewReason: ReviewReason? = nil,
+        parent: PlanItem? = nil,
+        folderMode: FolderMode? = nil,
+        skipReason: String? = nil
     ) -> PlanItem {
-        PlanItem(
-            id: String(name.hashValue, radix: 16),
+        let relativePath = parent.map { "\($0.relativePath)/\(name)" } ?? name
+        return PlanItem(
+            id: String(relativePath.hashValue, radix: 16),
             name: name,
-            source: root.appending(path: name),
+            source: root.appending(path: relativePath),
             kind: kind,
             fileExtension: kind == .folder ? "" : Normalizer.fullExtension(of: name),
             resolvedDate: date,
@@ -34,10 +38,15 @@ extension PlanItem {
             confidence: confidence,
             status: status,
             reviewReason: reviewReason,
+            skipReason: skipReason,
             critical: critical,
             approved: approved,
             classified: true,
-            sourceFingerprint: SourceFingerprint(size: kind == .file ? 1 : nil, modifiedAt: date)
+            sourceFingerprint: SourceFingerprint(size: kind == .file ? 1 : nil, modifiedAt: date),
+            relativePath: relativePath,
+            depth: parent.map { $0.depth + 1 } ?? 0,
+            parentID: parent?.id,
+            folderMode: folderMode
         )
     }
 }
@@ -49,5 +58,9 @@ extension Plan {
 
     func item(_ name: String) -> PlanItem {
         items.first { $0.name == name }!
+    }
+
+    func item(path relativePath: String) -> PlanItem {
+        items.first { $0.relativePath == relativePath }!
     }
 }

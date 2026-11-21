@@ -6,4 +6,6 @@ public enum PlanError: Error, Equatable {
     case unknownCategory(String)
     case alreadyApplied
     case notReady
+    case notAFolder
+    case folderModeFixed
 }

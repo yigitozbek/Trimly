@@ -7,11 +7,14 @@ public enum TargetAssigner {
         let settings = plan.settingsSnapshot
         let language = settings.categoryLanguage
         var resolver = TargetResolver(root: plan.root, settings: settings)
-        let order = plan.items.indices.sorted { plan.items[$0].name < plan.items[$1].name }
+        let order = plan.items.indices.sorted { plan.items[$0].relativePath < plan.items[$1].relativePath }
 
         for index in order {
             var item = plan.items[index]
+            // Covered items move with their kept folder; a distributed folder never moves itself.
             guard item.status != .skipped,
+                  item.covered == false,
+                  item.kind != .folder || item.folderMode != .distribute,
                   let categoryID = item.categoryID,
                   let category = settings.category(id: categoryID) else {
                 item.target = nil

@@ -65,6 +65,37 @@ public enum PlanEditor {
         return changed
     }
 
+    /// Switches a folder between moving as one unit (`keep`) and distributing its contents (`distribute`).
+    /// Recomputes coverage and targets; items that become effective get the planner's default approval.
+    public static func setFolderMode(_ plan: inout Plan, itemID: String, mode: FolderMode) throws {
+        switch plan.state {
+        case .applied: throw PlanError.alreadyApplied
+        case .inProgress: throw PlanError.notReady
+        case .ready: break
+        }
+        guard let index = plan.items.firstIndex(where: { $0.id == itemID }) else {
+            throw PlanError.itemNotFound(itemID)
+        }
+        let folder = plan.items[index]
+        guard folder.kind == .folder else {
+            throw PlanError.notAFolder
+        }
+        guard folder.skipReason != Planner.categoryFolderReason, folder.skipReason != Planner.yearFolderReason else {
+            throw PlanError.folderModeFixed
+        }
+        plan.items[index].folderMode = mode
+        plan.items[index].status = .review
+        plan.items[index].reviewReason = mode == .keep ? .folder : .mixedFolder
+        plan.items[index].approved = false
+        CoverageResolver.apply(&plan)
+        TargetAssigner.assign(&plan)
+        let prefix = folder.relativePath + "/"
+        for child in plan.items.indices where plan.items[child].relativePath.hasPrefix(prefix) && plan.items[child].covered == false {
+            let item = plan.items[child]
+            plan.items[child].approved = item.status == .ready && item.critical == false && item.kind != .folder && item.target != nil
+        }
+    }
+
     /// Sets approval for the given items and returns how many changed (e.g. "select all" over visible rows).
     /// Approving never includes critical, skipped or target-less items; un-approving is always allowed.
     public static func setApproval(_ plan: inout Plan, itemIDs: Set<String>, approved: Bool) -> Int {
