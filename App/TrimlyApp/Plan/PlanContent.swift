@@ -17,10 +17,6 @@ struct PlanContent: View {
             if session.canResume {
                 ResumeRow(resume: resume, rescan: rescan)
             }
-            if let notice = session.notice {
-                Label(notice, systemImage: "info.circle")
-                    .foregroundStyle(.secondary)
-            }
             PendingSection(session: session)
             ReadySection(session: session)
             SkippedSection(session: session)

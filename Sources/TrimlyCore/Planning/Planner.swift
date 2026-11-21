@@ -64,6 +64,12 @@ public struct Planner: Sendable {
                 item.status = .skipped
                 item.skipReason = reason
                 item.classified = true
+            } else if ignore.isCategoryFolder(file) {
+                // Never moved itself; its contents are planned (nested scanning).
+                item.status = .skipped
+                item.skipReason = Self.categoryFolderReason
+                item.folderMode = .distribute
+                item.classified = true
             } else {
                 let rule = rules.match(file)
                 if rule.strength == .decisive && file.kind != .folder {
@@ -113,6 +119,9 @@ public struct Planner: Sendable {
     }
 
     // MARK: - Shared with review / editing
+
+    static let categoryFolderReason = "Trimly kategori klasörü (içi düzenlenir)"
+    static let yearFolderReason = "Yıl klasörü (içi düzenlenir)"
 
     static func itemID(for url: URL) -> String {
         SHA256.hash(data: Data(url.standardizedFileURL.path.utf8)).prefix(4).map { String(format: "%02x", $0) }.joined()

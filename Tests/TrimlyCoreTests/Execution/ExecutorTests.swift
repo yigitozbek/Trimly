@@ -95,7 +95,8 @@ struct ExecutorTests {
         let again = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         #expect(again.id != plan.id)
         #expect(again.items.contains { $0.approved } == false)
-        #expect(again.item("Ekran-Goruntuleri").skipReason == "Trimly kategori klasörü")
+        #expect(again.item("Ekran-Goruntuleri").skipReason == "Trimly kategori klasörü (içi düzenlenir)")
+        #expect(again.item("Ekran-Goruntuleri").folderMode == .distribute)
     }
 
     @Test func recoveryMarksPendingMoves() throws {

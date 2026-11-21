@@ -12,7 +12,9 @@ extension FileItem {
         utType: String? = nil,
         histogram: [String: Int] = [:],
         isLink: Bool = false,
-        url: URL? = nil
+        url: URL? = nil,
+        depth: Int = 0,
+        parent: String? = nil
     ) -> FileItem {
         FileItem(
             url: url ?? URL(filePath: "/tmp/trimly-stub").appending(path: name),
@@ -26,7 +28,10 @@ extension FileItem {
             spotlightDateAdded: dateAdded,
             spotlightContentCreationDate: contentCreation,
             folderExtensionHistogram: histogram,
-            isLink: isLink
+            isLink: isLink,
+            relativePath: parent.map { "\($0)/\(name)" } ?? name,
+            depth: depth,
+            parentRelativePath: parent
         )
     }
 }

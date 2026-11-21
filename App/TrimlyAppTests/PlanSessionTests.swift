@@ -50,26 +50,6 @@ struct PlanSessionTests {
         #expect(reopened.plan?.id != oldEngine.id)
     }
 
-    @Test func alreadyOrganizedFolderExplainsWhyNothingIsProposed() async throws {
-        let f = try AppFixture.empty()
-        try f.writeSettings { $0.targetMode = .central }
-        let invoices = try TestFS.folder("Faturalar", in: f.root)
-        try TestFS.file("2025-02-10_Fatura_Enerjisa.pdf", in: invoices)
-        let session = PlanSession(root: f.root, environment: f.environment())
-        await session.start()
-        #expect(session.notice == "Bu klasör daha önce düzenlenmiş (1 kategori klasörü). Kategori klasörlerinin içeriğini merkezi arşive taşımak henüz desteklenmiyor; iç içe tarama özelliğiyle gelecek.")
-        try f.writeSettings { $0.targetMode = .inPlace }
-        await session.rescan()
-        #expect(session.notice == "Bu klasör zaten düzenli: 1 kategori klasörü var, düzenlenecek yeni öğe yok.")
-    }
-
-    @Test func noNoticeWhenThereIsWork() async throws {
-        let f = try AppFixture.standard()
-        let session = PlanSession(root: f.root, environment: f.environment())
-        await session.start()
-        #expect(session.notice == nil)
-    }
-
     @Test(.tags(.edgeCase)) func startIsIdempotent() async throws {
         let f = try AppFixture.standard()
         let session = PlanSession(root: f.root, environment: f.environment())

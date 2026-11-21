@@ -39,6 +39,15 @@ struct IgnoreRulesTests {
         #expect(rules.skipReason(for: .stub("DerivedData", kind: .folder)) == "Build/çıktı klasörü")
     }
 
+    @Test func recentCategoryAndYearFoldersAreNotSkipped() {
+        #expect(rules.skipReason(for: .stub("Faturalar", kind: .folder, modifiedAt: now)) == nil)
+        let year = FileItem.stub("2025", kind: .folder, modifiedAt: now, depth: 1, parent: "Faturalar")
+        #expect(rules.isYearFolderInCategory(year))
+        #expect(rules.skipReason(for: year) == nil)
+        #expect(rules.isYearFolderInCategory(.stub("2025", kind: .folder, depth: 1, parent: "Rastgele")) == false)
+        #expect(rules.skipReason(for: .stub("Rastgele", kind: .folder, modifiedAt: now)) == "Son 60 dakikada değişti")
+    }
+
     @Test(.tags(.fileSystem)) func plainFolderIsNotSkipped() throws {
         let root = try TestFS.tempDir()
         let album = try TestFS.folder("Album", in: root)
@@ -47,8 +56,10 @@ struct IgnoreRulesTests {
     }
 
     @Test func categoryFoldersAndGlobs() {
-        #expect(rules.skipReason(for: .stub("Faturalar", kind: .folder)) == "Trimly kategori klasörü")
-        #expect(rules.skipReason(for: .stub("invoices", kind: .folder)) == "Trimly kategori klasörü")
+        #expect(rules.skipReason(for: .stub("Faturalar", kind: .folder)) == nil)
+        #expect(rules.skipReason(for: .stub("invoices", kind: .folder)) == nil)
+        #expect(rules.isCategoryFolder(.stub("Faturalar", kind: .folder)))
+        #expect(rules.isCategoryFolder(.stub("Faturalar", kind: .folder, depth: 1, parent: "Rastgele")) == false)
         #expect(rules.skipReason(for: .stub("Faturalar")) == nil)
         #expect(rules.skipReason(for: .stub("Fotoğraflar.photoslibrary", kind: .package)) == "Hariç tutma listesi")
         var settings = Settings()
