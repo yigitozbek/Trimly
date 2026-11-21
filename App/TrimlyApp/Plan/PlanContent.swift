@@ -23,10 +23,20 @@ struct PlanContent: View {
                 Label(notice, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.secondary)
             }
-            PendingSection(session: session)
-            ReadySection(session: session)
-            TrashSection(session: session)
-            SkippedSection(session: session)
+            if session.isBusy && session.plan == nil {
+                Section {
+                    Label(scanningMessage, systemImage: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    Text("Sonuçlar bitince burada listelenir. Başlık çubuğundaki klasöre bakın (\(PathFormatting.displayName(session.root))).")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            } else {
+                PendingSection(session: session)
+                ReadySection(session: session)
+                TrashSection(session: session)
+                SkippedSection(session: session)
+            }
         }
         .onKeyPress(.space) {
             previewSelection()
@@ -116,6 +126,23 @@ struct PlanContent: View {
     private var selectedPreviewItem: PlanItem? {
         guard let id = selectedItemID else { return nil }
         return session.plan?.items.first { $0.id == id }
+    }
+
+    private var scanningMessage: String {
+        switch session.phase {
+        case .scanning(let progress):
+            if let progress, progress.total > 0 {
+                return "Taranıyor… LLM \(progress.processed)/\(progress.total)"
+            }
+            return "Taranıyor…"
+        case .reviewing(let progress):
+            if let progress, progress.total > 0 {
+                return "Detaylı inceleniyor… LLM \(progress.processed)/\(progress.total)"
+            }
+            return "Detaylı inceleniyor…"
+        default:
+            return "İşleniyor…"
+        }
     }
 
     private func previewSelection() {
