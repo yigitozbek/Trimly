@@ -43,7 +43,11 @@ targets:
         PRODUCT_NAME: Trimly
         PRODUCT_MODULE_NAME: TrimlyApp
         ENABLE_APP_SANDBOX: NO
-        GENERATE_INFOPLIST_FILE: NO
+        # Generated keys (shown in Xcode's General tab) are merged with TrimlyApp/Resources/Info.plist,
+        # which keeps what build settings cannot express (URL types, folder usage descriptions).
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Trimly
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
   TrimlyAppTests:
     type: bundle.unit-test
