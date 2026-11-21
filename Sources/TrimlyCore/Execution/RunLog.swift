@@ -16,18 +16,25 @@ public enum RunLog {
             return nil
         }
         let moves = doneMoves(in: journal)
+        let tags = doneTags(in: journal)
+        let undoable = moves + tags
         return RunInfo(
             runID: runID,
             planID: header.planID ?? "",
             root: header.root ?? "",
             at: header.at ?? .distantPast,
             moved: moves.count,
-            undone: moves.allSatisfy { isUndone($0.seq, in: journal) }
+            undone: undoable.allSatisfy { isUndone($0.seq, in: journal) },
+            tagged: tags.count
         )
     }
 
     static func doneMoves(in journal: Journal) -> [JournalEntry] {
         journal.entries.filter { $0.op == .move && journal.effectiveState(of: $0.seq) == .done }
+    }
+
+    static func doneTags(in journal: Journal) -> [JournalEntry] {
+        journal.entries.filter { $0.op == .tag && journal.effectiveState(of: $0.seq) == .done }
     }
 
     /// True when an `undo` line for `seq` has reached `done`.

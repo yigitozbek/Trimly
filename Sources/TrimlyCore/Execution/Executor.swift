@@ -1,7 +1,8 @@
 import Foundation
 
 /// Applies the approved items of a plan. Moves only (`FileManager.moveItem`, which refuses to overwrite),
-/// each one journaled `pending` → move → `done`, so every run can be undone.
+/// each one journaled `pending` → move → `done`, so every run can be undone. Category tags are written after
+/// a successful move (or alone in `tagOnly` mode) and journaled the same way.
 public struct Executor: Sendable {
     private let directory: DataDirectory
     private let now: @Sendable () -> Date
@@ -35,15 +36,14 @@ public struct Executor: Sendable {
             header: JournalEntry(seq: 0, type: "header", runID: runID, planID: plan.id, root: plan.root.path, at: now())
         )
         var moved = 0
+        var tagged = 0
         var movedSources: [URL] = []
         var skipped: [SkippedEntry] = []
         var failed: [SkippedEntry] = []
 
-        for item in plan.items where item.approved && item.status != .skipped {
-            guard let plannedTarget = item.target else {
-                skipped.append(SkippedEntry(path: item.source.path, reason: "Hedef yok"))
-                continue
-            }
+        for item in plan.items where item.approved && item.status != .skipped && item.hasAction {
+            let needsMove = item.target != nil
+            let needsTag = item.tagsToAdd.isEmpty == false
             guard let current = SourceFingerprint.read(from: item.source) else {
                 skipped.append(SkippedEntry(path: item.source.path, reason: "Kaynak bulunamadı"))
                 continue
@@ -52,24 +52,53 @@ public struct Executor: Sendable {
                 skipped.append(SkippedEntry(path: item.source.path, reason: "Kaynak değişmiş"))
                 continue
             }
-            do {
-                try createFolders(for: plannedTarget.deletingLastPathComponent(), journal: &journal)
-                let target = freeTarget(plannedTarget, source: item.source, plan: plan)
+
+            var finalURL = item.source
+            if needsMove, let plannedTarget = item.target {
+                do {
+                    try createFolders(for: plannedTarget.deletingLastPathComponent(), journal: &journal)
+                    let target = freeTarget(plannedTarget, source: item.source, plan: plan)
+                    let seq = try journal.append(JournalEntry(
+                        seq: -1, op: .move, state: .pending, from: item.source.path, to: target.path,
+                        size: current.size, mtime: current.modifiedAt
+                    ))
+                    do {
+                        try FileManager.default.moveItem(at: item.source, to: target)
+                        try journal.append(JournalEntry(seq: -1, ref: seq, state: .done))
+                        moved += 1
+                        movedSources.append(item.source)
+                        finalURL = target
+                    } catch {
+                        try journal.append(JournalEntry(seq: -1, ref: seq, state: .failed, message: error.localizedDescription))
+                        failed.append(SkippedEntry(path: item.source.path, reason: "Taşıma hatası: \(error.localizedDescription)"))
+                        continue
+                    }
+                } catch {
+                    failed.append(SkippedEntry(path: item.source.path, reason: "Taşıma hatası: \(error.localizedDescription)"))
+                    continue
+                }
+            }
+
+            if needsTag {
+                let previous = FinderTags.read(finalURL)
+                let missing = item.tagsToAdd.filter { FinderTags.contains($0, in: previous) == false }
+                guard missing.isEmpty == false else { continue }
+                let tags = previous + missing
                 let seq = try journal.append(JournalEntry(
-                    seq: -1, op: .move, state: .pending, from: item.source.path, to: target.path,
-                    size: current.size, mtime: current.modifiedAt
+                    seq: -1, op: .tag, state: .pending, path: finalURL.path, tags: tags, previousTags: previous
                 ))
                 do {
-                    try FileManager.default.moveItem(at: item.source, to: target)
+                    try FinderTags.write(tags, to: finalURL)
                     try journal.append(JournalEntry(seq: -1, ref: seq, state: .done))
-                    moved += 1
-                    movedSources.append(item.source)
+                    tagged += 1
                 } catch {
-                    try journal.append(JournalEntry(seq: -1, ref: seq, state: .failed, message: error.localizedDescription))
-                    failed.append(SkippedEntry(path: item.source.path, reason: "Taşıma hatası: \(error.localizedDescription)"))
+                    try journal.append(JournalEntry(
+                        seq: -1, ref: seq, state: .failed, message: "Etiket eklenemedi: \(error.localizedDescription)"
+                    ))
+                    failed.append(SkippedEntry(
+                        path: finalURL.path, reason: "Etiket eklenemedi: \(error.localizedDescription)"
+                    ))
                 }
-            } catch {
-                failed.append(SkippedEntry(path: item.source.path, reason: "Taşıma hatası: \(error.localizedDescription)"))
             }
         }
 
@@ -80,7 +109,7 @@ public struct Executor: Sendable {
         plan.state = .applied
         plan.appliedRunID = runID
         try store.save(plan)
-        return RunSummary(runID: runID, moved: moved, skipped: skipped, failed: failed)
+        return RunSummary(runID: runID, moved: moved, skipped: skipped, failed: failed, tagged: tagged)
     }
 
     /// Creates missing folders top-down and journals each one so undo can remove it if it ends up empty.

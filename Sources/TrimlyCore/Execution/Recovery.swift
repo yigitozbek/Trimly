@@ -14,9 +14,19 @@ public enum Recovery {
                 guard let from = entry.from, let to = entry.to else { continue }
                 completed = fm.fileExists(atPath: to) && fm.fileExists(atPath: from) == false
             case .undo:
-                guard let move = entry.ref.flatMap({ ref in journal.entries.first { $0.seq == ref } }),
-                      let from = move.from, let to = move.to else { continue }
-                completed = fm.fileExists(atPath: from) && fm.fileExists(atPath: to) == false
+                guard let original = entry.ref.flatMap({ ref in journal.entries.first { $0.seq == ref } }) else {
+                    continue
+                }
+                switch original.op {
+                case .move:
+                    guard let from = original.from, let to = original.to else { continue }
+                    completed = fm.fileExists(atPath: from) && fm.fileExists(atPath: to) == false
+                case .tag:
+                    guard let path = original.path, let previous = original.previousTags else { continue }
+                    completed = FinderTags.sameSet(FinderTags.read(URL(filePath: path)), previous)
+                default:
+                    continue
+                }
             case .mkdir:
                 guard let path = entry.path else { continue }
                 completed = fm.fileExists(atPath: path)
@@ -24,8 +34,8 @@ public enum Recovery {
                 guard let path = entry.path else { continue }
                 completed = fm.fileExists(atPath: path) == false
             case .tag:
-                // Resolved in phase 3b Task 4 (tags are not journaled before then).
-                continue
+                guard let path = entry.path, let tags = entry.tags else { continue }
+                completed = FinderTags.sameSet(FinderTags.read(URL(filePath: path)), tags)
             case nil:
                 continue
             }

@@ -1,8 +1,9 @@
 import Foundation
 
-/// Replays a run's journal backwards. Skips (and reports) anything that changed since the move;
-/// removes only folders Trimly created, and only when empty (a lone Finder `.DS_Store` counts as empty).
-/// Undo steps are journaled too, so running it twice is safe and a partial undo can be resumed.
+/// Replays a run's journal backwards in one reverse-seq pass (`rmdir`, `tag`, `move`, `mkdir`). Skips (and
+/// reports) anything that changed since the run; removes only folders Trimly created, and only when empty (a
+/// lone Finder `.DS_Store` counts as empty). Undo steps are journaled too, so running it twice is safe and a
+/// partial undo can be resumed.
 public struct Undoer: Sendable {
     private let directory: DataDirectory
 
@@ -25,81 +26,119 @@ public struct Undoer: Sendable {
         var journal = try Journal.open(at: url)
         let fm = FileManager.default
         var restored = 0
+        var restoredTags = 0
         var removedFolders = 0
         var skipped: [SkippedEntry] = []
 
-        // The journal is replayed in reverse: folders the run removed (always journaled after every move) come back
-        // first, outermost first, then the moves, then the folders the run created.
-        let removedByRun = journal.entries.filter { $0.op == .rmdir && journal.effectiveState(of: $0.seq) == .done }
-        for folder in removedByRun.reversed() where RunLog.isUndone(folder.seq, in: journal) == false {
-            guard let path = folder.path else { continue }
-            var isDirectory: ObjCBool = false
-            if fm.fileExists(atPath: path, isDirectory: &isDirectory) == false {
-                do {
-                    try fm.createDirectory(atPath: path, withIntermediateDirectories: false)
-                } catch {
-                    let reason = "Klasör yeniden oluşturulamadı: \(error.localizedDescription)"
-                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .failed, message: reason))
-                    skipped.append(SkippedEntry(path: path, reason: reason))
+        let replayable: Set<JournalOp> = [.rmdir, .tag, .move, .mkdir]
+        let ops = journal.entries.filter {
+            guard let op = $0.op, replayable.contains(op) else { return false }
+            return journal.effectiveState(of: $0.seq) == .done
+        }
+        for entry in ops.reversed() where RunLog.isUndone(entry.seq, in: journal) == false {
+            switch entry.op {
+            case .rmdir:
+                guard let path = entry.path else { continue }
+                var isDirectory: ObjCBool = false
+                if fm.fileExists(atPath: path, isDirectory: &isDirectory) == false {
+                    do {
+                        try fm.createDirectory(atPath: path, withIntermediateDirectories: false)
+                    } catch {
+                        let reason = "Klasör yeniden oluşturulamadı: \(error.localizedDescription)"
+                        try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .failed, message: reason))
+                        skipped.append(SkippedEntry(path: path, reason: reason))
+                        continue
+                    }
+                } else if isDirectory.boolValue == false {
+                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: "Klasörün yerinde dosya var"))
+                    skipped.append(SkippedEntry(path: path, reason: "Klasörün yerinde dosya var"))
                     continue
                 }
-            } else if isDirectory.boolValue == false {
-                try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .skipped, message: "Klasörün yerinde dosya var"))
-                skipped.append(SkippedEntry(path: path, reason: "Klasörün yerinde dosya var"))
-                continue
-            }
-            try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .done))
-        }
+                try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .done))
 
-        for move in RunLog.doneMoves(in: journal).reversed() where RunLog.isUndone(move.seq, in: journal) == false {
-            guard let from = move.from, let to = move.to else { continue }
-            let reason: String?
-            if let current = SourceFingerprint.read(from: URL(filePath: to)) {
-                let journaled = SourceFingerprint(size: move.size, modifiedAt: move.mtime ?? .distantPast)
-                if journaled.matches(current) == false {
-                    reason = "Hedef dosya değişmiş"
-                } else if fm.fileExists(atPath: from) {
-                    reason = "Orijinal konum dolu"
-                } else {
-                    reason = nil
+            case .tag:
+                guard let path = entry.path, let written = entry.tags, let previous = entry.previousTags else { continue }
+                let fileURL = URL(filePath: path)
+                guard fm.fileExists(atPath: path) else {
+                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: "Dosya bulunamadı"))
+                    skipped.append(SkippedEntry(path: path, reason: "Dosya bulunamadı"))
+                    continue
                 }
-            } else {
-                reason = "Hedefte dosya yok"
-            }
-            if let reason {
-                try journal.append(JournalEntry(seq: -1, op: .undo, ref: move.seq, state: .skipped, message: reason))
-                skipped.append(SkippedEntry(path: to, reason: reason))
-                continue
-            }
-            let undoSeq = try journal.append(JournalEntry(seq: -1, op: .undo, ref: move.seq, state: .pending))
-            do {
-                try fm.moveItem(at: URL(filePath: to), to: URL(filePath: from))
-                try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .done))
-                restored += 1
-            } catch {
-                try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .failed, message: error.localizedDescription))
-                skipped.append(SkippedEntry(path: to, reason: "Geri alma hatası: \(error.localizedDescription)"))
-            }
-        }
+                let current = FinderTags.read(fileURL)
+                guard FinderTags.sameSet(current, written) else {
+                    try journal.append(JournalEntry(
+                        seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: "Etiketler sonradan değişmiş"
+                    ))
+                    skipped.append(SkippedEntry(path: path, reason: "Etiketler sonradan değişmiş"))
+                    continue
+                }
+                let undoSeq = try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .pending))
+                do {
+                    try FinderTags.write(previous, to: fileURL)
+                    try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .done))
+                    restoredTags += 1
+                } catch {
+                    try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .failed, message: error.localizedDescription))
+                    skipped.append(SkippedEntry(path: path, reason: "Etiket geri alınamadı: \(error.localizedDescription)"))
+                }
 
-        let createdFolders = journal.entries.filter { $0.op == .mkdir && journal.effectiveState(of: $0.seq) == .done }
-        for folder in createdFolders.reversed() where RunLog.isUndone(folder.seq, in: journal) == false {
-            guard let path = folder.path else { continue }
-            let outcome = Self.removeCreatedFolder(at: path)
-            switch outcome {
-            case .gone:
-                try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .done))
-            case .removed:
-                try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .done))
-                removedFolders += 1
-            case .kept(let reason):
-                try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .skipped, message: reason))
-                skipped.append(SkippedEntry(path: path, reason: reason))
+            case .move:
+                guard let from = entry.from, let to = entry.to else { continue }
+                let reason: String?
+                if let current = SourceFingerprint.read(from: URL(filePath: to)) {
+                    let journaled = SourceFingerprint(size: entry.size, modifiedAt: entry.mtime ?? .distantPast)
+                    if journaled.matches(current) == false {
+                        reason = "Hedef dosya değişmiş"
+                    } else if fm.fileExists(atPath: from) {
+                        reason = "Orijinal konum dolu"
+                    } else {
+                        reason = nil
+                    }
+                } else {
+                    reason = "Hedefte dosya yok"
+                }
+                if let reason {
+                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: reason))
+                    skipped.append(SkippedEntry(path: to, reason: reason))
+                    continue
+                }
+                let undoSeq = try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .pending))
+                do {
+                    try fm.moveItem(at: URL(filePath: to), to: URL(filePath: from))
+                    try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .done))
+                    restored += 1
+                } catch {
+                    try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .failed, message: error.localizedDescription))
+                    skipped.append(SkippedEntry(path: to, reason: "Geri alma hatası: \(error.localizedDescription)"))
+                }
+
+            case .mkdir:
+                guard let path = entry.path else { continue }
+                let outcome = Self.removeCreatedFolder(at: path)
+                switch outcome {
+                case .gone:
+                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .done))
+                case .removed:
+                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .done))
+                    removedFolders += 1
+                case .kept(let reason):
+                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: reason))
+                    skipped.append(SkippedEntry(path: path, reason: reason))
+                }
+
+            case .undo, nil:
+                continue
             }
         }
 
         let runIDValue = journal.entries.first { $0.type == "header" }?.runID ?? url.deletingPathExtension().lastPathComponent
-        return UndoSummary(runID: runIDValue, restored: restored, removedFolders: removedFolders, skipped: skipped)
+        return UndoSummary(
+            runID: runIDValue,
+            restored: restored,
+            removedFolders: removedFolders,
+            skipped: skipped,
+            restoredTags: restoredTags
+        )
     }
 
     private enum FolderOutcome {
@@ -128,7 +167,9 @@ public struct Undoer: Sendable {
         if rmdir(path) == 0 {
             return .removed
         }
-        return errno == ENOTEMPTY || errno == EEXIST ? .kept("Klasör boş değil") : .kept("Klasör kaldırılamadı: \(String(cString: strerror(errno)))")
+        return errno == ENOTEMPTY || errno == EEXIST
+            ? .kept("Klasör boş değil")
+            : .kept("Klasör kaldırılamadı: \(String(cString: strerror(errno)))")
     }
 
     private func journalURL(for runID: String?) throws -> URL {
