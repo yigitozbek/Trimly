@@ -33,25 +33,47 @@ enum Output {
 
     // MARK: Plan
 
+    /// Covered items are not listed: they travel inside their kept folder, whose row shows how many there are.
     static func printPlan(_ plan: Plan) {
-        let visible = plan.items.filter { $0.status != .skipped }.sorted { order($0) < order($1) || (order($0) == order($1) && $0.name < $1.name) }
+        let planned = plan.items.filter { $0.covered == false }
+        let visible = planned.filter { $0.status != .skipped }
+            .sorted { order($0) < order($1) || (order($0) == order($1) && $0.relativePath < $1.relativePath) }
         for item in visible {
-            print(row(item, root: plan.root))
+            print(row(item, root: plan.root, coveredCount: coveredCount(of: item, in: plan)))
         }
-        let skipped = Dictionary(grouping: plan.items.filter { $0.status == .skipped }, by: { $0.skipReason ?? "?" })
+        let skipped = Dictionary(grouping: planned.filter { $0.status == .skipped }, by: { $0.skipReason ?? "?" })
         if skipped.isEmpty == false {
             let parts = skipped.sorted { $0.key < $1.key }.map { "\($0.key) ×\($0.value.count)" }
             print("Atlananlar: " + parts.joined(separator: ", "))
         }
+        let covered = plan.items.count - planned.count
+        if covered > 0 {
+            print("Kapsanan: \(covered) (bütün tutulan klasörlerle birlikte taşınır)")
+        }
+        if plan.truncated {
+            print("Uyarı: 5.000 öğe sınırına ulaşıldı; daha derine inilmedi.")
+        }
     }
 
-    static func row(_ item: PlanItem, root: URL) -> String {
+    static func row(_ item: PlanItem, root: URL, coveredCount: Int = 0) -> String {
         let mark = item.approved ? "✓" : (item.status == .critical ? "🔒" : "✗")
         let target = item.target.map { relative($0, to: root) } ?? "—"
         let confidence = item.confidence.map { String(format: "%.2f", $0) } ?? "  — "
         let note = item.reason ?? item.reviewReason.map(reviewLabel) ?? ""
-        return [mark, pad(statusLabel(item.status), 8), item.id, pad(truncate(item.name, 40), 40), "→", target, confidence, decisionLabel(item.decidedBy), note]
+        let mode = switch item.folderMode {
+        case .distribute: "[dağıt]"
+        case .keep: "[bütün tut · \(coveredCount) öğe]"
+        case nil: ""
+        }
+        return [mark, pad(statusLabel(item.status), 8), item.id, pad(truncate(item.relativePath, 48), 48), mode, "→", target, confidence, decisionLabel(item.decidedBy), note]
+            .filter { $0.isEmpty == false }
             .joined(separator: "  ")
+    }
+
+    static func coveredCount(of folder: PlanItem, in plan: Plan) -> Int {
+        guard folder.folderMode == .keep else { return 0 }
+        let prefix = folder.relativePath + "/"
+        return plan.items.filter { $0.covered && $0.relativePath.hasPrefix(prefix) }.count
     }
 
     static func printStats(_ stats: PlanStats) {
