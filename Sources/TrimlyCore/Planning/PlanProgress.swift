@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PlanProgress: Sendable {
+public struct PlanProgress: Sendable, Equatable {
     public let processed: Int
     public let total: Int
     public let stage: Int

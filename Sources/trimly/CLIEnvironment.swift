@@ -17,14 +17,7 @@ struct CLIEnvironment {
 
     /// Checks that Ollama answers and `model` is installed; returns a Turkish warning otherwise.
     func llmProblem(for model: String) async -> String? {
-        let health = await provider().health()
-        guard health.reachable else {
-            return "Ollama erişilemiyor"
-        }
-        guard health.availableModels.contains(model) || health.availableModels.contains(model + ":latest") else {
-            return "\(model) yüklü değil"
-        }
-        return nil
+        LLMReadiness.problem(await provider().health(), model: model)
     }
 
     static func absoluteURL(_ path: String) -> URL {

@@ -140,6 +140,48 @@ struct ReviewAndEditorTests {
         #expect(plan.item("kimlik.pdf").approved == false)
     }
 
+    @Test func editingInProgressPlanIsRejected() throws {
+        let root = try TestFS.tempDir()
+        var plan = Plan.stub(root: root, items: [.stub("a.pdf", in: root, category: "documents", status: .review)], state: .inProgress)
+        let id = plan.item("a.pdf").id
+        #expect(throws: PlanError.notReady) {
+            try PlanEditor.set(&plan, itemID: id, categoryID: nil, description: nil, approve: true)
+        }
+        #expect(PlanEditor.bulkApprove(&plan, categoryID: nil, reviewReason: nil, minConfidence: nil, includeFolders: true) == 0)
+    }
+
+    @Test func bulkRejectClearsCategoryIncludingCritical() throws {
+        let root = try TestFS.tempDir()
+        var plan = Plan.stub(root: root, items: [
+            .stub("a.pdf", in: root, category: "documents", approved: true),
+            .stub("b.pdf", in: root, category: "documents", status: .critical, critical: true, approved: true),
+            .stub("c.jpg", in: root, category: "images", approved: true),
+            .stub("d.pdf", in: root, category: "documents", status: .skipped)
+        ])
+        #expect(PlanEditor.bulkReject(&plan, categoryID: "documents") == 2)
+        #expect(plan.item("a.pdf").approved == false && plan.item("b.pdf").approved == false)
+        #expect(plan.item("c.jpg").approved)
+        #expect(PlanEditor.bulkReject(&plan, categoryID: nil) == 1)
+    }
+
+    @Test func bulkRejectIgnoresAppliedPlans() throws {
+        let root = try TestFS.tempDir()
+        var plan = Plan.stub(root: root, items: [.stub("a.pdf", in: root, category: "documents", approved: true)], state: .applied)
+        #expect(PlanEditor.bulkReject(&plan, categoryID: nil) == 0)
+        #expect(plan.item("a.pdf").approved)
+    }
+
+    @Test func latestReadyFindsRecentReadyPlanForRoot() async throws {
+        let f = try PlannerFixture()
+        var plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        #expect(try f.store.latestReady(root: f.root, now: Date())?.id == plan.id)
+        #expect(try f.store.latestReady(root: try TestFS.tempDir(), now: Date()) == nil)
+        #expect(try f.store.latestReady(root: f.root, now: Date().addingTimeInterval(25 * 3600)) == nil)
+        plan.state = .applied
+        try f.store.save(plan)
+        #expect(try f.store.latestReady(root: f.root, now: Date()) == nil)
+    }
+
     @Test func bulkApproveFilters() throws {
         let root = try TestFS.tempDir()
         let items: [PlanItem] = [

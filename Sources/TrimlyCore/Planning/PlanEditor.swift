@@ -4,8 +4,10 @@ import Foundation
 /// per-item `set(... approve: true)`; bulk approval never includes critical items.
 public enum PlanEditor {
     public static func set(_ plan: inout Plan, itemID: String, categoryID: String?, description: String?, approve: Bool?) throws {
-        guard plan.state != .applied else {
-            throw PlanError.alreadyApplied
+        switch plan.state {
+        case .applied: throw PlanError.alreadyApplied
+        case .inProgress: throw PlanError.notReady
+        case .ready: break
         }
         guard let index = plan.items.firstIndex(where: { $0.id == itemID }) else {
             throw PlanError.itemNotFound(itemID)
@@ -40,7 +42,7 @@ public enum PlanEditor {
     /// Approves matching items and returns how many changed. Filters combine with AND.
     /// Never includes critical, skipped or target-less items; folders only with `includeFolders`.
     public static func bulkApprove(_ plan: inout Plan, categoryID: String?, reviewReason: ReviewReason?, minConfidence: Double?, includeFolders: Bool) -> Int {
-        guard plan.state != .applied else {
+        guard plan.state == .ready else {
             return 0
         }
         var changed = 0
@@ -58,6 +60,24 @@ public enum PlanEditor {
                 continue
             }
             plan.items[index].approved = true
+            changed += 1
+        }
+        return changed
+    }
+
+    /// Un-approves matching items (all non-skipped items when `categoryID` is nil) and returns how many changed.
+    /// Rejecting is always safe, so critical items are included.
+    public static func bulkReject(_ plan: inout Plan, categoryID: String?) -> Int {
+        guard plan.state == .ready else {
+            return 0
+        }
+        var changed = 0
+        for index in plan.items.indices {
+            let item = plan.items[index]
+            guard item.approved, item.status != .skipped, categoryID == nil || item.categoryID == categoryID else {
+                continue
+            }
+            plan.items[index].approved = false
             changed += 1
         }
         return changed

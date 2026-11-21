@@ -17,6 +17,11 @@ struct ApplyCommand: AsyncParsableCommand {
         try await Output.guarding {
             let env = try global.environment()
             let plan = try env.store.load(id: planID)
+            switch plan.state {
+            case .applied: throw ExecutionError.alreadyApplied
+            case .inProgress: throw ExecutionError.notReady
+            case .ready: break
+            }
             let approved = plan.items.filter { $0.approved && $0.status != .skipped && $0.target != nil }
             guard approved.isEmpty == false else {
                 print("Onaylı öğe yok; hiçbir şey taşınmadı.")

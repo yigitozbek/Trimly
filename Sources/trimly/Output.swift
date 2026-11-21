@@ -28,17 +28,7 @@ enum Output {
     }
 
     static func message(for error: any Error) -> String {
-        switch error {
-        case PlanError.notFound(let id): "Plan bulunamadı: \(id)"
-        case PlanError.itemNotFound(let id): "Öğe bulunamadı: \(id)"
-        case PlanError.unknownCategory(let id): "Bilinmeyen kategori: \(id). Geçerli kimlikler: \(Settings().categories.map(\.id).joined(separator: ", "))"
-        case PlanError.alreadyApplied, ExecutionError.alreadyApplied: "Bu plan zaten uygulanmış; yeni bir plan oluşturun."
-        case PlanError.notReady, ExecutionError.notReady: "Plan henüz tamamlanmamış; önce `trimly plan` ile bitirin."
-        case UndoError.noRuns: "Geri alınacak işlem yok."
-        case UndoError.runNotFound(let id): "İşlem bulunamadı: \(id)"
-        case ScanError.notADirectory(let url): "Klasör değil: \(url.path)"
-        default: error.localizedDescription
-        }
+        UserMessage.text(for: error)
     }
 
     // MARK: Plan

@@ -44,6 +44,15 @@ public struct PlanStore: Sendable {
         }
     }
 
+    /// A finished, not yet applied plan for the same root from the last 24 hours (e.g. started in the CLI).
+    public func latestReady(root: URL, now: Date) throws -> Plan? {
+        try list().first { plan in
+            plan.state == .ready
+                && TargetResolver.samePath(plan.root, root)
+                && plan.createdAt > now.addingTimeInterval(-Self.resumeWindow)
+        }
+    }
+
     private func url(for id: String) -> URL {
         directory.plansURL.appending(path: "\(id).json", directoryHint: .notDirectory)
     }
