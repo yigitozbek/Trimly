@@ -114,4 +114,15 @@ struct FolderScannerTests {
         let tree = try FolderScanner().scanTree(root: root, maxDepth: 1) { _ in true }
         #expect(try FolderScanner().scan(root: root).map(\.name) == tree.items.map(\.name))
     }
+
+    /// Review I2: a folder cut off by the item limit is not reported as listed.
+    @Test(.tags(.edgeCase)) func partiallyListedFolderIsNotDescended() throws {
+        let root = try TestFS.tempDir()
+        for index in 0..<4 {
+            let folder = try TestFS.folder("F\(index)", in: root)
+            for file in 0..<2 { try TestFS.file("f\(file).txt", in: folder) }
+        }
+        let tree = try FolderScanner().scanTree(root: root, maxDepth: 3, limit: 5) { _ in true }
+        #expect(tree.truncated && tree.descended.isEmpty)
+    }
 }

@@ -42,7 +42,8 @@ struct ItemRow: View {
                 }
             }
             Spacer(minLength: 12)
-            if isEditable && item.kind == .folder && item.folderMode != nil && item.status != .skipped {
+            // No choice for locked folders (they must stay distributed) or unlisted ones (nothing to distribute).
+            if isEditable && item.kind == .folder && item.folderMode != nil && item.status != .skipped && item.modeLock == nil && item.listed {
                 FolderModePicker(item: item, session: session)
             }
             if isEditable {
@@ -69,8 +70,19 @@ struct ItemRow: View {
     }
 
     /// "İçinde N öğe · M kritik dosya": what this folder carries when it moves as one unit.
+    @ViewBuilder
     private var coverageText: some View {
         let coverage = session.coverage(of: item)
+        if coverage.listed {
+            listedCoverageText(coverage)
+        } else {
+            Text("İçi taranmadı (tarama derinliği veya öğe sınırı); klasör içindekilerle birlikte tek parça taşınır")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private func listedCoverageText(_ coverage: FolderCoverage) -> some View {
         let critical = coverage.critical > 0 ? " · \(coverage.critical) kritik dosya; yalnızca tek tek onaylanabilir" : ""
         return Text("İçinde \(coverage.count) öğe\(critical)")
             .font(.caption)

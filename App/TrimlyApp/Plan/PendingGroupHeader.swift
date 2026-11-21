@@ -14,12 +14,18 @@ struct PendingGroupHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(folder.relativePath)
                     .font(.headline)
-                Text("Karışık klasör: içindekiler tek tek düzenlenir, klasör yerinde kalır.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let lock = folder.modeLock {
+                    Label("Tek parça taşınamaz: \(lock). İçindekiler tek tek düzenlenir.", systemImage: "lock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Karışık klasör: içindekiler tek tek düzenlenir, klasör yerinde kalır.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 12)
-            if session.isReadOnly == false {
+            if session.isReadOnly == false && folder.modeLock == nil {
                 FolderModePicker(item: folder, session: session)
             }
         }

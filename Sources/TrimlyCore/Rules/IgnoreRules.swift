@@ -9,12 +9,16 @@ public struct IgnoreRules: Sendable {
     private let now: Date
     private let categoryFolderNames: Set<String>
     private let projectFolderNames: Set<String>
+    private let archivePath: String?
 
     public init(settings: Settings, now: Date) {
         self.settings = settings
         self.now = now
         self.categoryFolderNames = settings.allCategoryFolderNames
         self.projectFolderNames = Set(settings.projectFolderNames.map { $0.lowercased() })
+        self.archivePath = settings.targetMode == .central
+            ? URL(filePath: (settings.archiveRoot as NSString).expandingTildeInPath).standardizedFileURL.path
+            : nil
     }
 
     public func skipReason(for item: FileItem) -> String? {
@@ -23,6 +27,10 @@ public struct IgnoreRules: Sendable {
 
         if item.isLink {
             return "Kısayol veya sembolik bağ"
+        }
+        // The archive inside the scanned folder is Trimly's destination: never scanned, never moved.
+        if isFolder, let archivePath, item.url.standardizedFileURL.path == archivePath {
+            return "Merkezi arşiv klasörü"
         }
         if Self.systemFiles.contains(item.name) {
             return "Sistem dosyası"
@@ -50,6 +58,13 @@ public struct IgnoreRules: Sendable {
             return "Son \(settings.recentMinutes) dakikada değişti"
         }
         return nil
+    }
+
+    /// The folder's own listing shows a partial download; used for folders the scan did not descend into.
+    public func containsPartialDownload(_ item: FileItem) -> Bool {
+        item.folderExtensionHistogram.keys.contains { ext in
+            Self.partialDownloadExtensions.contains(ext.split(separator: ".").last.map(String.init) ?? ext)
+        }
     }
 
     /// Skipped items a folder may still carry when it moves as one unit: links, system and hidden files.

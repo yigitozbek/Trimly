@@ -82,11 +82,16 @@ public enum PlanEditor {
         guard folder.kind == .folder else {
             throw PlanError.notAFolder
         }
-        guard folder.skipReason != Planner.categoryFolderReason, folder.skipReason != Planner.yearFolderReason else {
-            throw PlanError.folderModeFixed
+        if let lock = folder.modeLock {
+            // Locked folders are distributed already; only `keep` would change anything.
+            guard mode == .distribute else { throw PlanError.folderModeLocked(lock) }
+            return
+        }
+        guard mode == .keep || folder.listed else {
+            throw PlanError.folderNotListed
         }
         plan.items[index].folderMode = mode
-        plan.items[index].status = .review
+        plan.items[index].status = folder.critical ? .critical : .review
         plan.items[index].reviewReason = mode == .keep ? .folder : .mixedFolder
         plan.items[index].approved = false
         CoverageResolver.apply(&plan)

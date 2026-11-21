@@ -59,10 +59,11 @@ enum Output {
         let mark = item.approved ? "✓" : (item.status == .critical ? "🔒" : "✗")
         let target = item.target.map { relative($0, to: root) } ?? "—"
         let confidence = item.confidence.map { String(format: "%.2f", $0) } ?? "  — "
-        let note = item.reason ?? item.reviewReason.map(reviewLabel) ?? ""
+        // A locked folder offers no choice, so it must not say "dağıt / bütün tut seçin".
+        let note = item.modeLock != nil ? "tek parça taşınamaz" : (item.reason ?? item.reviewReason.map(reviewLabel) ?? "")
         let mode = switch item.folderMode {
-        case .distribute: "[dağıt]"
-        case .keep: "[bütün tut · \(coveredCount) öğe]"
+        case .distribute: item.modeLock.map { "[dağıt · \($0)]" } ?? "[dağıt]"
+        case .keep: item.listed ? "[bütün tut · \(coveredCount) öğe]" : "[bütün tut · içi taranmadı]"
         case nil: ""
         }
         return [mark, pad(statusLabel(item.status), 8), item.id, pad(truncate(item.relativePath, 48), 48), mode, "→", target, confidence, decisionLabel(item.decidedBy), note]

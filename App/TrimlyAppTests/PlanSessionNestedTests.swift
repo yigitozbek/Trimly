@@ -51,7 +51,7 @@ struct PlanSessionNestedTests {
         let session = await started(f)
         let folder = try f.item("Tatil", in: session.plan)
         #expect(folder.folderMode == .keep)
-        #expect(session.coverage(of: folder) == FolderCoverage(count: 6, critical: 1))
+        #expect(session.coverage(of: folder) == FolderCoverage(count: 6, critical: 1, listed: true))
         session.setPendingApproved(true)
         #expect(try f.item("Tatil", in: session.plan).approved == false)
         #expect(session.readyGroups.flatMap(\.items).isEmpty)
@@ -80,5 +80,14 @@ struct PlanSessionNestedTests {
         // Changed settings make the saved plan non-reusable, so the next window plans afresh.
         try f.writeSettings { $0.removeEmptyFolders = true }
         #expect(await started(f).applySummary.removesEmptyFolders)
+    }
+
+    /// Review I3: beyond the depth limit the row must not claim the folder is empty.
+    @Test func unlistedKeptFolderSaysContentsWereNotScanned() async throws {
+        let f = try fixture((1...5).map { "Album/\($0).jpg" })
+        try f.writeSettings { $0.scanDepth = 1 }
+        let session = await started(f)
+        let folder = try f.item("Album", in: session.plan)
+        #expect(session.coverage(of: folder).listed == false)
     }
 }

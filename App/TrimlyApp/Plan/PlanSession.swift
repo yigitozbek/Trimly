@@ -75,10 +75,10 @@ final class PlanSession {
 
     /// Items a kept folder carries along (its covered descendants), and how many of them are critical.
     func coverage(of folder: PlanItem) -> FolderCoverage {
-        guard let plan, folder.folderMode == .keep else { return FolderCoverage(count: 0, critical: 0) }
+        guard let plan, folder.folderMode == .keep else { return FolderCoverage(count: 0, critical: 0, listed: folder.listed) }
         let prefix = folder.relativePath + "/"
         let inside = plan.items.filter { $0.covered && $0.relativePath.hasPrefix(prefix) }
-        return FolderCoverage(count: inside.count, critical: inside.filter { $0.critical || $0.status == .critical }.count)
+        return FolderCoverage(count: inside.count, critical: inside.filter { $0.critical || $0.status == .critical }.count, listed: folder.listed)
     }
 
     var readyGroups: [CategoryGroup] {

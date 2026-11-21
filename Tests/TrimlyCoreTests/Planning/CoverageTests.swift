@@ -50,10 +50,13 @@ struct CoverageTests {
 
     @Test func fixedModeFolderRejectsChange() throws {
         let root = try TestFS.tempDir()
-        let category = PlanItem.stub("Faturalar", in: root, kind: .folder, status: .skipped, folderMode: .distribute, skipReason: Planner.categoryFolderReason)
+        let category = PlanItem.stub(
+            "Faturalar", in: root, kind: .folder, status: .skipped, folderMode: .distribute,
+            skipReason: Planner.categoryFolderReason, modeLock: "Trimly kategori klasörü"
+        )
         let file = PlanItem.stub("a.pdf", in: root, category: "documents")
         var plan = Plan.stub(root: root, items: [category, file])
-        #expect(throws: PlanError.folderModeFixed) {
+        #expect(throws: PlanError.folderModeLocked("Trimly kategori klasörü")) {
             try PlanEditor.setFolderMode(&plan, itemID: category.id, mode: .keep)
         }
         #expect(throws: PlanError.notAFolder) {
@@ -86,5 +89,30 @@ struct CoverageTests {
         #expect(PlanEditor.setApproval(&plan, itemIDs: [folder.id], approved: true) == 0)
         try PlanEditor.set(&plan, itemID: folder.id, categoryID: nil, description: nil, approve: true)
         #expect(plan.item("Tatil").approved)
+    }
+
+    /// Review I4: a manual category edit clears the skip reason but must not unlock the folder.
+    @Test(.tags(.edgeCase)) func fixedFolderStaysFixedAfterManualEdit() throws {
+        let root = try TestFS.tempDir()
+        let category = PlanItem.stub(
+            "Faturalar", in: root, kind: .folder, status: .skipped, folderMode: .distribute,
+            skipReason: Planner.categoryFolderReason, modeLock: "Trimly kategori klasörü"
+        )
+        var plan = Plan.stub(root: root, items: [category])
+        try PlanEditor.set(&plan, itemID: category.id, categoryID: "documents", description: nil, approve: nil)
+        #expect(throws: PlanError.folderModeLocked("Trimly kategori klasörü")) {
+            try PlanEditor.setFolderMode(&plan, itemID: category.id, mode: .keep)
+        }
+        #expect(plan.item("Faturalar").target == nil)
+    }
+
+    /// Review I3: a folder whose contents were never listed cannot be distributed.
+    @Test func unlistedFolderCannotBeDistributed() throws {
+        let root = try TestFS.tempDir()
+        let folder = PlanItem.stub("Album", in: root, category: "photos", kind: .folder, status: .review, reviewReason: .folder, folderMode: .keep, listed: false)
+        var plan = Plan.stub(root: root, items: [folder])
+        #expect(throws: PlanError.folderNotListed) {
+            try PlanEditor.setFolderMode(&plan, itemID: folder.id, mode: .distribute)
+        }
     }
 }

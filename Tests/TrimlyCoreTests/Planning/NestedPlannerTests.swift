@@ -93,4 +93,64 @@ struct NestedPlannerTests {
         #expect(item.status == .critical && item.approved == false)
         #expect(await mock.requests.first { $0.request.name == "kimlik.pdf" }?.request.contentPreview == nil)
     }
+
+    /// Review C1: the pin is stored, so the folder can never be switched to keep and moved with what pins it.
+    @Test(.tags(.edgeCase)) func pinnedFolderCannotBeKept() async throws {
+        let f = try PlannerFixture(standardFiles: false)
+        try tree(f, (1...4).map { "Indirme/\($0).jpg" } + ["Indirme/x.crdownload", "Calisma/a.pdf", "Calisma/b.pdf", "Calisma/proj/.git/HEAD"])
+        var plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        for name in ["Indirme", "Calisma"] {
+            let folder = plan.item(name)
+            let lock = try #require(folder.modeLock)
+            #expect(throws: PlanError.folderModeLocked(lock)) {
+                try PlanEditor.setFolderMode(&plan, itemID: folder.id, mode: .keep)
+            }
+        }
+        #expect(plan.item("Indirme").modeLock == "İçinde taşınmaması gereken öğe var (Yarım indirme)")
+    }
+
+    /// Review C2: a folder that is critical by name keeps its contents critical when distributed.
+    @Test(.tags(.edgeCase)) func criticalFolderProtectsItsContents() async throws {
+        let f = try PlannerFixture(standardFiles: false)
+        try tree(f, ["Kimlik/scan.jpg", "Kimlik/notlar.txt", "Kimlik/x.dmg"])
+        let mock = MockLLMProvider(defaultResult: PlannerFixture.result("Belgeler"))
+        let plan = try await f.planner(mock).makePlan(root: f.root, useLLM: true)
+        #expect(plan.item("Kimlik").folderMode == .distribute && plan.item("Kimlik").status == .critical)
+        for path in ["Kimlik/scan.jpg", "Kimlik/notlar.txt", "Kimlik/x.dmg"] {
+            #expect(plan.item(path: path).critical && plan.item(path: path).approved == false)
+        }
+        #expect(await mock.requests.allSatisfy { $0.request.contentPreview == nil })
+    }
+
+    /// Review I1: the central archive inside the scanned root is never scanned or moved.
+    @Test(.tags(.edgeCase)) func archiveInsideRootIsNotScanned() async throws {
+        var f = try PlannerFixture(standardFiles: false)
+        try tree(f, ["Arsiv/Faturalar/2025-02-10_Fatura_Enerjisa.pdf", "Arsiv/Gorseller/x.jpg", "a.pdf"])
+        f.settings.targetMode = .central
+        f.settings.archiveRoot = f.root.appending(path: "Arsiv").path
+        let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        #expect(plan.item("Arsiv").skipReason == "Merkezi arşiv klasörü")
+        #expect(plan.items.contains { $0.relativePath.hasPrefix("Arsiv/") } == false)
+    }
+
+    /// Review I2: a partial download just below the scan horizon still pins the folders above it.
+    @Test(.tags(.edgeCase)) func partialDownloadBelowScanHorizonPinsAncestors() async throws {
+        let f = try PlannerFixture(standardFiles: false)
+        try tree(f, (1...5).map { "X/Y/Z/\($0).jpg" } + ["X/Y/Z/big.crdownload"])
+        let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        #expect(plan.item(path: "X/Y/Z").skipReason == "İçinde yarım indirme")
+        #expect(plan.item("X").folderMode == .distribute && plan.item(path: "X/Y").folderMode == .distribute)
+    }
+
+    /// Review I3: folders beyond the depth limit are marked as not listed.
+    @Test func unlistedFoldersAreMarked() async throws {
+        var f = try PlannerFixture(standardFiles: false)
+        f.settings.scanDepth = 1
+        try tree(f, (1...5).map { "Album/\($0).jpg" })
+        let shallow = try await f.planner(nil).makePlan(root: f.root, useLLM: false, resume: false)
+        #expect(shallow.item("Album").listed == false && shallow.item("Album").folderMode == .keep)
+        f.settings.scanDepth = 3
+        let deep = try await f.planner(nil).makePlan(root: f.root, useLLM: false, resume: false)
+        #expect(deep.item("Album").listed)
+    }
 }

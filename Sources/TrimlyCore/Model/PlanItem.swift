@@ -27,6 +27,11 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
     public var folderMode: FolderMode?
     /// Inside a `keep` ancestor: travels with that folder, never approved or targeted on its own.
     public var covered: Bool
+    /// Folders only: why the folder must stay `distribute` (it never moves as one unit), e.g. a Trimly category
+    /// folder or a partial download inside. Stored so no later edit can switch it to `keep`.
+    public let modeLock: String?
+    /// Folders only: the scan listed its contents (false beyond the depth limit or the item limit).
+    public let listed: Bool
 
     public init(
         id: String,
@@ -52,7 +57,9 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         depth: Int = 0,
         parentID: String? = nil,
         folderMode: FolderMode? = nil,
-        covered: Bool = false
+        covered: Bool = false,
+        modeLock: String? = nil,
+        listed: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -78,6 +85,8 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         self.parentID = parentID
         self.folderMode = folderMode
         self.covered = covered
+        self.modeLock = modeLock
+        self.listed = listed
     }
 
     /// Plans written before nested scanning lack the tree fields; they decode as top-level items.
@@ -107,5 +116,7 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         parentID = try c.decodeIfPresent(String.self, forKey: .parentID)
         folderMode = try c.decodeIfPresent(FolderMode.self, forKey: .folderMode)
         covered = try c.decodeIfPresent(Bool.self, forKey: .covered) ?? false
+        modeLock = try c.decodeIfPresent(String.self, forKey: .modeLock)
+        listed = try c.decodeIfPresent(Bool.self, forKey: .listed) ?? false
     }
 }

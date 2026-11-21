@@ -39,17 +39,25 @@ public struct Planner: Sendable {
         let rules = RuleEngine(settings: settings)
         let llm = useLLM && settings.llmEnabled ? provider : nil
         let tree = try Self.scanTree(root: root, settings: settings, ignore: ignore)
-        let skipReasons = tree.items.map { ignore.skipReason(for: $0) }
+        // A folder the scan did not enter but whose listing shows a partial download is skipped too, so it pins
+        // the folders above it like a partial download that was scanned.
+        let skipReasons = tree.items.map { file in
+            ignore.skipReason(for: file)
+                ?? (file.kind == .folder && tree.descended.contains(file.relativePath) == false && ignore.containsPartialDownload(file)
+                    ? Self.partialInsideReason : nil)
+        }
         let pinned = Self.pinnedFolders(tree.items, skipReasons: skipReasons, ignore: ignore)
 
         // Pass 1: skip reasons, fixed folders, already-organized names and folder modes.
         var items: [PlanItem] = []
         var idByPath: [String: String] = [:]
+        var criticalByPath: [String: Bool] = [:]
         var unclassified: [(index: Int, file: FileItem, rule: RuleMatch)] = []
         for (offset, file) in tree.items.enumerated() {
             let id = Self.itemID(for: file.url)
             idByPath[file.relativePath] = id
             if let kept = previous[id], kept.classified {
+                criticalByPath[file.relativePath] = kept.critical
                 items.append(kept)
                 continue
             }
@@ -64,10 +72,14 @@ public struct Planner: Sendable {
                 sourceFingerprint: SourceFingerprint(size: file.sizeBytes, modifiedAt: file.modifiedAt ?? startedAt),
                 relativePath: file.relativePath,
                 depth: file.depth,
-                parentID: file.parentRelativePath.flatMap { idByPath[$0] }
+                parentID: file.parentRelativePath.flatMap { idByPath[$0] },
+                modeLock: Self.modeLock(for: file, pinnedBy: pinned[file.relativePath], ignore: ignore),
+                listed: file.kind == .folder && tree.descended.contains(file.relativePath)
             )
-            // Computed for skipped items too: a manual `set` may un-skip them later.
-            item.critical = detector.isCritical(file)
+            // Computed for skipped items too: a manual `set` may un-skip them later. Inherited: everything inside a
+            // folder that is critical by name ("Kimlik", "Bordro"…) stays critical when the folder is distributed.
+            item.critical = detector.isCritical(file) || (file.parentRelativePath.flatMap { criticalByPath[$0] } ?? false)
+            criticalByPath[file.relativePath] = item.critical
             if let reason = skipReasons[offset] {
                 item.status = .skipped
                 item.skipReason = reason
@@ -81,7 +93,7 @@ public struct Planner: Sendable {
             } else {
                 let organized = OrganizedName.match(file, settings: settings)
                 if file.kind == .folder {
-                    let isPinned = pinned.contains(file.relativePath)
+                    let isPinned = pinned[file.relativePath] != nil
                     item.folderMode = organized != nil && isPinned == false
                         ? .keep
                         : FolderModeDecider.mode(for: file, descended: tree.descended.contains(file.relativePath), hasPinnedDescendant: isPinned, settings: settings)
@@ -104,7 +116,7 @@ public struct Planner: Sendable {
             var item = plan.items[entry.index]
             if entry.file.kind == .folder && item.folderMode == .distribute {
                 Self.applyFallback(entry.rule, to: &item, reason: .weakRuleNoLLM, message: nil, settings: settings)
-                item.status = .review
+                item.status = item.critical ? .critical : .review
                 item.reviewReason = .mixedFolder
             } else if entry.rule.strength == .decisive && entry.file.kind != .folder {
                 Self.applyDecisive(entry.rule, to: &item, settings: settings)
@@ -174,16 +186,32 @@ public struct Planner: Sendable {
         try FolderScanner().scanTree(root: root, maxDepth: max(settings.scanDepth, 1)) { ignore.skipReason(for: $0) == nil }
     }
 
-    /// Folders that must not move as one unit because a descendant is skipped for a reason that pins it in place.
-    private static func pinnedFolders(_ files: [FileItem], skipReasons: [String?], ignore: IgnoreRules) -> Set<String> {
-        var pinned: Set<String> = []
-        for (file, reason) in zip(files, skipReasons) where reason != nil && ignore.movesWithParent(file) == false {
+    static let partialInsideReason = "İçinde yarım indirme"
+
+    /// Folders that must not move as one unit, with the skip reason of the (first) descendant that pins them.
+    private static func pinnedFolders(_ files: [FileItem], skipReasons: [String?], ignore: IgnoreRules) -> [String: String] {
+        var pinned: [String: String] = [:]
+        for (file, reason) in zip(files, skipReasons) {
+            guard let reason, ignore.movesWithParent(file) == false else { continue }
             var ancestor = file.parentRelativePath
-            while let path = ancestor, pinned.insert(path).inserted {
+            while let path = ancestor, pinned[path] == nil {
+                pinned[path] = reason
                 ancestor = path.lastIndex(of: "/").map { String(path[..<$0]) }
             }
         }
         return pinned
+    }
+
+    /// Why a folder must stay distributed, stored on the item so no later edit can switch it to `keep`.
+    private static func modeLock(for file: FileItem, pinnedBy reason: String?, ignore: IgnoreRules) -> String? {
+        guard file.kind == .folder else { return nil }
+        if ignore.isCategoryFolder(file) {
+            return "Trimly kategori klasörü"
+        }
+        if ignore.isYearFolderInCategory(file) {
+            return "Yıl klasörü"
+        }
+        return reason.map { "İçinde taşınmaması gereken öğe var (\($0))" }
     }
 
     /// Already carries Trimly's name inside its category folder: same category and description, so the target is
