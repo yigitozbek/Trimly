@@ -3,7 +3,7 @@ import Foundation
 public struct Plan: Codable, Equatable, Sendable {
     /// Bumped whenever classification or safety rules change, so plans made by an older engine are never reused.
     /// History: 1 = phase 1 (no field in JSON), 2 = phase 2 final-review rules, 3 = nested scanning, 4 = Finder tags.
-    public static let currentEngineVersion = 4
+    public static let currentEngineVersion = 5
 
     public let id: String
     public let root: URL

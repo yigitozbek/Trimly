@@ -36,6 +36,10 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
     public let existingTags: [String]
     /// Category tags the run adds (never removes any); empty when nothing is added.
     public var tagsToAdd: [String]
+    /// Why this file is a Trash candidate (files only); nil when it is not.
+    public var trashReason: TrashReason?
+    /// Run that moved this item to Trash; plan stays `.ready`.
+    public var trashedRunID: String?
 
     /// Applying it would move the item or add tags to it.
     public var hasAction: Bool {
@@ -70,7 +74,9 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         modeLock: String? = nil,
         listed: Bool = false,
         existingTags: [String] = [],
-        tagsToAdd: [String] = []
+        tagsToAdd: [String] = [],
+        trashReason: TrashReason? = nil,
+        trashedRunID: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -100,6 +106,8 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         self.listed = listed
         self.existingTags = existingTags
         self.tagsToAdd = tagsToAdd
+        self.trashReason = trashReason
+        self.trashedRunID = trashedRunID
     }
 
     /// Plans written before nested scanning lack the tree fields; they decode as top-level items.
@@ -133,5 +141,7 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         listed = try c.decodeIfPresent(Bool.self, forKey: .listed) ?? false
         existingTags = try c.decodeIfPresent([String].self, forKey: .existingTags) ?? []
         tagsToAdd = try c.decodeIfPresent([String].self, forKey: .tagsToAdd) ?? []
+        trashReason = try c.decodeIfPresent(TrashReason.self, forKey: .trashReason)
+        trashedRunID = try c.decodeIfPresent(String.self, forKey: .trashedRunID)
     }
 }

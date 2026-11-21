@@ -135,6 +135,9 @@ public struct Undoer: Sendable {
                     skipped.append(SkippedEntry(path: path, reason: reason))
                 }
 
+            case .trash:
+                // Implemented in Task 3.
+                continue
             case .undo, nil:
                 continue
             }

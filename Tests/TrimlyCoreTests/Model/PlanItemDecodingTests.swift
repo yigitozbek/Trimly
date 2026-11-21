@@ -23,8 +23,8 @@ struct PlanItemDecodingTests {
         #expect(try JSONCoding.decoder.decode(Plan.self, from: data).truncated == false)
     }
 
-    @Test func engineVersionIsFour() {
-        #expect(Plan.currentEngineVersion == 4)
+    @Test func engineVersionIsFive() {
+        #expect(Plan.currentEngineVersion == 5)
     }
 
     @Test func decodesPhase3aItemWithoutTagFields() throws {
@@ -32,5 +32,12 @@ struct PlanItemDecodingTests {
         let data = try dropping(["existingTags", "tagsToAdd"], from: JSONCoding.encoder.encode(item))
         let decoded = try JSONCoding.decoder.decode(PlanItem.self, from: data)
         #expect(decoded.existingTags.isEmpty && decoded.tagsToAdd.isEmpty)
+    }
+
+    @Test func decodesPhase3bItemWithoutTrashFields() throws {
+        let item = PlanItem.stub("a.pdf", in: try TestFS.tempDir(), category: "documents")
+        let data = try dropping(["trashReason", "trashedRunID"], from: JSONCoding.encoder.encode(item))
+        let decoded = try JSONCoding.decoder.decode(PlanItem.self, from: data)
+        #expect(decoded.trashReason == nil && decoded.trashedRunID == nil)
     }
 }

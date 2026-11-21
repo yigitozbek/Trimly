@@ -36,6 +36,9 @@ public enum Recovery {
             case .tag:
                 guard let path = entry.path, let tags = entry.tags else { continue }
                 completed = (try? FinderTags.read(URL(filePath: path))).map { FinderTags.sameSet($0, tags) } ?? false
+            case .trash:
+                // Resolved in Task 3 (trash ops are not journaled before then).
+                continue
             case nil:
                 continue
             }

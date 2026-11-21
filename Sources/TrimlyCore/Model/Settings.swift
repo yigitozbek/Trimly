@@ -35,6 +35,13 @@ public struct Settings: Codable, Equatable, Sendable {
     /// Finder tag → category id. Matched ignoring case and accents; unknown category ids are ignored.
     public var tagMappings: [String: String] = [:]
 
+    // Trash candidates
+    public var trashInstallerAgeDays = 30
+    public var trashPartialDownloadAgeDays = 1
+    public var trashDuplicates = true
+    public var trashEmptyFiles = true
+    public var trashTempFiles = true
+
     // Ignore
     public var ignoreHidden = true
     public var ignoreApps = true
@@ -83,6 +90,11 @@ public struct Settings: Codable, Equatable, Sendable {
         removeEmptyFolders = try c.decodeIfPresent(Bool.self, forKey: .removeEmptyFolders) ?? d.removeEmptyFolders
         addCategoryTags = try c.decodeIfPresent(Bool.self, forKey: .addCategoryTags) ?? d.addCategoryTags
         tagMappings = try c.decodeIfPresent([String: String].self, forKey: .tagMappings) ?? d.tagMappings
+        trashInstallerAgeDays = try c.decodeIfPresent(Int.self, forKey: .trashInstallerAgeDays) ?? d.trashInstallerAgeDays
+        trashPartialDownloadAgeDays = try c.decodeIfPresent(Int.self, forKey: .trashPartialDownloadAgeDays) ?? d.trashPartialDownloadAgeDays
+        trashDuplicates = try c.decodeIfPresent(Bool.self, forKey: .trashDuplicates) ?? d.trashDuplicates
+        trashEmptyFiles = try c.decodeIfPresent(Bool.self, forKey: .trashEmptyFiles) ?? d.trashEmptyFiles
+        trashTempFiles = try c.decodeIfPresent(Bool.self, forKey: .trashTempFiles) ?? d.trashTempFiles
         ignoreHidden = try c.decodeIfPresent(Bool.self, forKey: .ignoreHidden) ?? d.ignoreHidden
         ignoreApps = try c.decodeIfPresent(Bool.self, forKey: .ignoreApps) ?? d.ignoreApps
         recentMinutes = try c.decodeIfPresent(Int.self, forKey: .recentMinutes) ?? d.recentMinutes
