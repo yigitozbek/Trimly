@@ -21,6 +21,15 @@ public struct Executor: Sendable {
         }
     }
 
+    /// Moves one Trash candidate to the system Trash. Own small run; plan stays `.ready`.
+    @concurrent
+    public func trash(planID: String, itemID: String) async throws -> RunSummary {
+        let lock = try DataLock.acquire(in: directory)
+        return try withExtendedLifetime(lock) {
+            try trashLocked(planID: planID, itemID: itemID)
+        }
+    }
+
     private func applyLocked(planID: String) throws -> RunSummary {
         let store = PlanStore(directory: directory)
         var plan = try store.load(id: planID)
@@ -120,6 +129,76 @@ public struct Executor: Sendable {
         plan.appliedRunID = runID
         try store.save(plan)
         return RunSummary(runID: runID, moved: moved, skipped: skipped, failed: failed, tagged: tagged)
+    }
+
+    private func trashLocked(planID: String, itemID: String) throws -> RunSummary {
+        let store = PlanStore(directory: directory)
+        var plan = try store.load(id: planID)
+        switch plan.state {
+        case .applied: throw ExecutionError.alreadyApplied
+        case .inProgress: throw ExecutionError.notReady
+        case .ready: break
+        }
+        guard let index = plan.items.firstIndex(where: { $0.id == itemID }) else {
+            throw PlanError.itemNotFound(itemID)
+        }
+        let item = plan.items[index]
+        guard item.trashReason != nil,
+              item.trashedRunID == nil,
+              item.critical == false,
+              item.covered == false,
+              item.kind != .folder else {
+            throw ExecutionError.notTrashCandidate
+        }
+        guard let current = SourceFingerprint.read(from: item.source) else {
+            return RunSummary(runID: "", moved: 0, skipped: [SkippedEntry(path: item.source.path, reason: "Kaynak bulunamadı")], failed: [])
+        }
+        guard item.sourceFingerprint.matches(current) else {
+            return RunSummary(
+                runID: "",
+                moved: 0,
+                skipped: [SkippedEntry(path: item.source.path, reason: "Kaynak değişmiş")],
+                failed: []
+            )
+        }
+
+        let runID = newRunID()
+        var journal = try Journal.create(
+            at: directory.runsURL.appending(path: "\(runID).jsonl"),
+            header: JournalEntry(
+                seq: 0, type: "header", runID: runID, planID: plan.id, root: plan.root.path, at: now(),
+                message: "Çöp: \(item.name)"
+            )
+        )
+        do {
+            var resulting: NSURL?
+            try FileManager.default.trashItem(at: item.source, resultingItemURL: &resulting)
+            guard let trashPath = (resulting as URL?)?.path else {
+                return RunSummary(
+                    runID: runID, moved: 0, skipped: [],
+                    failed: [SkippedEntry(path: item.source.path, reason: "Çöp yolu alınamadı")],
+                    trashed: 0
+                )
+            }
+            // `to` is only known after trashItem; pending+done still lets Recovery finish a torn done line.
+            let seq = try journal.append(JournalEntry(
+                seq: -1, op: .trash, state: .pending, from: item.source.path, to: trashPath,
+                size: current.size, mtime: current.modifiedAt
+            ))
+            try journal.append(JournalEntry(seq: -1, ref: seq, state: .done))
+        } catch {
+            return RunSummary(
+                runID: runID,
+                moved: 0,
+                skipped: [],
+                failed: [SkippedEntry(path: item.source.path, reason: "Çöp'e atılamadı: \(error.localizedDescription)")],
+                trashed: 0
+            )
+        }
+
+        plan.items[index].trashedRunID = runID
+        try store.save(plan)
+        return RunSummary(runID: runID, moved: 0, skipped: [], failed: [], trashed: 1)
     }
 
     /// Creates missing folders top-down and journals each one so undo can remove it if it ends up empty.

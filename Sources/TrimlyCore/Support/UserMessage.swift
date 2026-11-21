@@ -9,6 +9,7 @@ public enum UserMessage {
         case PlanError.unknownCategory(let id): "Bilinmeyen kategori: \(id). Geçerli kimlikler: \(Settings().categories.map(\.id).joined(separator: ", "))"
         case PlanError.alreadyApplied, ExecutionError.alreadyApplied: "Bu plan zaten uygulanmış; yeni bir plan oluşturun."
         case PlanError.notReady, ExecutionError.notReady: "Plan henüz tamamlanmamış; önce taramayı bitirin."
+        case ExecutionError.notTrashCandidate: "Bu öğe Çöp Kutusu'na atılamaz."
         case PlanError.notAFolder: "Bu öğe bir klasör değil."
         case PlanError.folderModeLocked(let reason): "Bu klasör tek parça taşınamaz: \(reason)."
         case PlanError.folderNotListed: "Bu klasörün içi taranmadı; dağıtmak için Ayarlar › Hedef'te tarama derinliğini artırıp yeniden tarayın."

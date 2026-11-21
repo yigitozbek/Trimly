@@ -30,7 +30,7 @@ public struct Undoer: Sendable {
         var removedFolders = 0
         var skipped: [SkippedEntry] = []
 
-        let replayable: Set<JournalOp> = [.rmdir, .tag, .move, .mkdir]
+        let replayable: Set<JournalOp> = [.rmdir, .tag, .trash, .move, .mkdir]
         let ops = journal.entries.filter {
             guard let op = $0.op, replayable.contains(op) else { return false }
             return journal.effectiveState(of: $0.seq) == .done
@@ -136,8 +136,32 @@ public struct Undoer: Sendable {
                 }
 
             case .trash:
-                // Implemented in Task 3.
-                continue
+                guard let from = entry.from, let to = entry.to else { continue }
+                if fm.fileExists(atPath: to) == false {
+                    try journal.append(JournalEntry(
+                        seq: -1, op: .undo, ref: entry.seq, state: .skipped,
+                        message: "Çöp Kutusu'nda bulunamadı (boşaltılmış olabilir)"
+                    ))
+                    skipped.append(SkippedEntry(path: to, reason: "Çöp Kutusu'nda bulunamadı (boşaltılmış olabilir)"))
+                    continue
+                }
+                if fm.fileExists(atPath: from) {
+                    try journal.append(JournalEntry(
+                        seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: "Orijinal konum dolu"
+                    ))
+                    skipped.append(SkippedEntry(path: to, reason: "Orijinal konum dolu"))
+                    continue
+                }
+                let undoSeq = try journal.append(JournalEntry(seq: -1, op: .undo, ref: entry.seq, state: .pending))
+                do {
+                    try fm.moveItem(at: URL(filePath: to), to: URL(filePath: from))
+                    try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .done))
+                    restored += 1
+                } catch {
+                    try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .failed, message: error.localizedDescription))
+                    skipped.append(SkippedEntry(path: to, reason: "Geri alma hatası: \(error.localizedDescription)"))
+                }
+
             case .undo, nil:
                 continue
             }
