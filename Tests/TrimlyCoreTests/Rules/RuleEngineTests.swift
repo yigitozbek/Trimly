@@ -26,6 +26,17 @@ struct RuleEngineTests {
         #expect(match("e-Arşiv Fatura 123.pdf") == RuleMatch(categoryID: "invoices", strength: .decisive, descriptionHint: nil))
         #expect(match("Kira Sözleşmesi.docx").categoryID == "contracts")
         #expect(match("fatura-ozet.mp4").categoryID == "videos")
+        #expect(match("AYŞE AKBULUT CV (1).pdf") == RuleMatch(categoryID: "documents", strength: .decisive, descriptionHint: nil))
+        #expect(match("iade_talep_dilekcesi.docx").categoryID == "officialDocs")
+        #expect(match("Findeks_Rapor.pdf").categoryID == "documents")
+        #expect(match("Findeks raporunuz hakkında-2.eml").categoryID == "documents")
+    }
+
+    @Test func mediaAndInstallersStayDecisive() {
+        #expect(match("IMG_7888 2.PNG").categoryID == "photos")
+        #expect(match("WhatsApp Video 2024 at 10.53.28.mp4").categoryID == "videos")
+        #expect(match("dump.sql").categoryID == "data")
+        #expect(match("Setup.dmg").categoryID == "installers")
     }
 
     @Test(arguments: [("song.mp3", "audio"), ("setup.dmg", "installers"), ("font.otf", "fonts"), ("design.pxd", "design"), ("map.geojson", "data"), ("main.swift", "code"), ("book.epub", "books"), ("talep.udf", "officialDocs"), ("cert.der", "certificates"), ("yedek.tar.gz", "archives"), ("release.keystore", "certificates"), ("upload.jks", "certificates"), ("app-release.aab", "installers"), ("launch.jnlp", "installers"), ("sayfa.htm", "code")])

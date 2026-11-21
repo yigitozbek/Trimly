@@ -40,6 +40,14 @@ public struct RuleEngine: Sendable {
             if name.contains(/sozlesme|contract|agreement/) {
                 return RuleMatch(categoryID: "contracts", strength: .decisive, descriptionHint: nil)
             }
+            // Petitions / official requests → Resmi-Evrak (before generic document keywords).
+            if name.contains(/dilekce|iade.?talep|basvuru|vekalet/) {
+                return RuleMatch(categoryID: "officialDocs", strength: .decisive, descriptionHint: nil)
+            }
+            // CVs, credit reports, generic named docs that should not wait on the LLM.
+            if name.contains(/\bcv\b|ozgecmis|findeks|ozet.?rapor/) {
+                return RuleMatch(categoryID: "documents", strength: .decisive, descriptionHint: nil)
+            }
         }
         if let mapped {
             return RuleMatch(categoryID: mapped.categoryID, strength: mapped.strength, descriptionHint: nil)

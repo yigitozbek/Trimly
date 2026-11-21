@@ -24,6 +24,7 @@ public enum DefaultRules {
         add("spreadsheets", .decisive, "xlsx xls numbers ods")
         add("presentations", .decisive, "pptx ppt odp")
         add("documents", .weak, "pdf doc docx txt md rtf pages odt")
+        add("documents", .decisive, "eml msg")
         add("design", .decisive, "psd pxd sketch fig ai xd afdesign afphoto indd eps")
         add("fonts", .decisive, "ttf otf woff woff2")
         add("books", .decisive, "epub mobi azw3 djvu")

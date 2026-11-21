@@ -18,7 +18,7 @@ public enum KnownExtensions {
         "json", "csv", "geojson", "xml", "yaml", "yml", "plist", "tsv", "parquet", "sql", "sqlite", "db",
         "xlsx", "xls", "numbers", "ods", "pptx", "ppt", "odp", "key",
         // documents & design & fonts & books
-        "pdf", "doc", "docx", "txt", "md", "rtf", "pages", "odt",
+        "pdf", "doc", "docx", "txt", "md", "rtf", "pages", "odt", "eml", "msg",
         "psd", "pxd", "sketch", "fig", "ai", "xd", "afdesign", "afphoto", "indd", "eps",
         "ttf", "otf", "woff", "woff2", "epub", "mobi", "azw3", "djvu",
         // official & certificates

@@ -23,7 +23,8 @@ public struct Settings: Codable, Equatable, Sendable {
 
     // Nested scanning
     /// Levels below the root: 1 = top level only.
-    public var scanDepth = 3
+    /// How many folder levels below the root to enter (1 = root only). Default 5 covers typical Downloads trees.
+    public var scanDepth = 5
     /// A folder whose files are at least this share of one category is kept together.
     public var distributeThreshold = 0.8
     /// After a run, remove folders it emptied (only empty ones; journaled and recreated on undo).
