@@ -24,6 +24,9 @@ public struct Undoer: Sendable {
         let url = try journalURL(for: runID)
         try Recovery.recover(journalAt: url)
         var journal = try Journal.open(at: url)
+        let header = journal.entries.first { $0.type == "header" }
+        let runIDValue = header?.runID ?? url.deletingPathExtension().lastPathComponent
+        let planID = header?.planID
         let fm = FileManager.default
         var restored = 0
         var restoredTags = 0
@@ -157,6 +160,7 @@ public struct Undoer: Sendable {
                     try fm.moveItem(at: URL(filePath: to), to: URL(filePath: from))
                     try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .done))
                     restored += 1
+                    try clearTrashedRunID(planID: planID, sourcePath: from, runID: runIDValue)
                 } catch {
                     try journal.append(JournalEntry(seq: -1, ref: undoSeq, state: .failed, message: error.localizedDescription))
                     skipped.append(SkippedEntry(path: to, reason: "Geri alma hatası: \(error.localizedDescription)"))
@@ -167,7 +171,6 @@ public struct Undoer: Sendable {
             }
         }
 
-        let runIDValue = journal.entries.first { $0.type == "header" }?.runID ?? url.deletingPathExtension().lastPathComponent
         return UndoSummary(
             runID: runIDValue,
             restored: restored,
@@ -175,6 +178,18 @@ public struct Undoer: Sendable {
             skipped: skipped,
             restoredTags: restoredTags
         )
+    }
+
+    /// After a successful trash undo the item is a candidate again (UI "Çöp Kutusu'na at").
+    private func clearTrashedRunID(planID: String?, sourcePath: String, runID: String) throws {
+        guard let planID else { return }
+        let store = PlanStore(directory: directory)
+        var plan = try store.load(id: planID)
+        guard let index = plan.items.firstIndex(where: {
+            $0.source.path == sourcePath || $0.trashedRunID == runID
+        }) else { return }
+        plan.items[index].trashedRunID = nil
+        try store.save(plan)
     }
 
     private enum FolderOutcome {

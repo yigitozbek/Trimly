@@ -29,6 +29,10 @@ struct TrashExecutionTests {
         let undo = try await Undoer(directory: f.data).undo(runID: summary.runID)
         #expect(undo.restored == 1)
         #expect(FileManager.default.fileExists(atPath: item.source.path))
+        #expect(try f.store.load(id: plan.id).item("Setup.dmg").trashedRunID == nil)
+        // Candidate again after undo.
+        let again = try await Executor(directory: f.data).trash(planID: plan.id, itemID: item.id)
+        #expect(again.trashed == 1)
     }
 
     @Test(.tags(.edgeCase)) func undoReportsEmptiedTrash() async throws {
