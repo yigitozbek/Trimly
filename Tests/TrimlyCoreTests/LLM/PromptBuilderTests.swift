@@ -26,4 +26,12 @@ struct PromptBuilderTests {
         let message = PromptBuilder.userMessage(request(preview: nil))
         #expect(["Belgeler", "Faturalar", "Diger", "download (3).pdf", "www.enerjisa.com.tr/fatura"].allSatisfy(message.contains))
     }
+
+    @Test func nestedItemsCarryTheirLocation() {
+        var request = request(preview: nil)
+        request.relativePath = "Rastgele/alt/fatura.pdf"
+        #expect(PromptBuilder.userMessage(request).contains("Konum: Rastgele/alt/"))
+        request.relativePath = nil
+        #expect(PromptBuilder.userMessage(request).contains("Konum:") == false)
+    }
 }

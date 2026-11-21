@@ -13,8 +13,11 @@ extension Planner {
         }
         let settings = plan.settingsSnapshot
         // Approved items are the user's decision; a second opinion must not silently change their destination.
+        // Covered items travel with their folder and a distributed folder never moves: neither needs an opinion.
         let candidates = plan.items.indices.filter {
-            (plan.items[$0].status == .review || plan.items[$0].status == .critical) && plan.items[$0].approved == false
+            let item = plan.items[$0]
+            return (item.status == .review || item.status == .critical) && item.approved == false
+                && item.covered == false && item.folderMode != .distribute
         }
         // Running stage 2 is an explicit request, so it works even if the plan was made with the LLM disabled.
         guard let provider, candidates.isEmpty == false else {
@@ -22,7 +25,7 @@ extension Planner {
         }
 
         await provider.unload(model: settings.stage1Model)
-        let scanned = try FolderScanner().scan(root: plan.root)
+        let scanned = try Self.scanTree(root: plan.root, settings: settings, ignore: IgnoreRules(settings: settings, now: now())).items
         let files = Dictionary(scanned.map { (Self.itemID(for: $0.url), $0) }, uniquingKeysWith: { first, _ in first })
         let rules = RuleEngine(settings: settings)
 

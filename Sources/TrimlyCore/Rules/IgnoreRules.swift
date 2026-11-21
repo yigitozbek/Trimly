@@ -52,6 +52,12 @@ public struct IgnoreRules: Sendable {
         return nil
     }
 
+    /// Skipped items a folder may still carry when it moves as one unit: links, system and hidden files.
+    /// Any other skipped descendant (partial download, recent change, project, exclusion list, app) pins its ancestors.
+    public func movesWithParent(_ item: FileItem) -> Bool {
+        item.isLink || Self.systemFiles.contains(item.name) || item.name.hasPrefix(".")
+    }
+
     /// One of Trimly's own category folders at the top of the scanned root.
     public func isCategoryFolder(_ item: FileItem) -> Bool {
         item.kind == .folder && item.depth == 0 && categoryFolderNames.contains(item.name.lowercased())

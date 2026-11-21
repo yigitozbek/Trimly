@@ -23,12 +23,15 @@ public struct FolderScanner: Sendable {
         }
         var items: [FileItem] = []
         var truncated = false
-        var descended: [String] = []
+        var descended: Set<String> = []
         var queue: [(url: URL, relative: String?, depth: Int)] = [(root, nil, 0)]
         var next = 0
         scanning: while next < queue.count {
             let (folder, relative, depth) = queue[next]
             next += 1
+            if let relative {
+                descended.insert(relative)
+            }
             // Item URLs are rebuilt from `root` so they share its form: the listing may report `/private/var/...`
             // for a root given as `/var/...`, which would break later source/target path comparisons.
             let names: [String]
@@ -47,11 +50,10 @@ public struct FolderScanner: Sendable {
                 items.append(item)
                 if item.kind == .folder, depth + 1 < maxDepth, shouldDescend(item) {
                     queue.append((item.url, path, depth + 1))
-                    descended.append(path)
                 }
             }
         }
-        return ScanTree(items: withDescendantHistograms(items, descended: Set(descended)), truncated: truncated)
+        return ScanTree(items: withDescendantHistograms(items, descended: descended), truncated: truncated, descended: descended)
     }
 
     private func withDescendantHistograms(_ items: [FileItem], descended: Set<String>) -> [FileItem] {

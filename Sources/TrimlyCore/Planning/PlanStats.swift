@@ -12,7 +12,8 @@ public struct PlanStats: Codable, Equatable, Sendable {
     public let topReviewPatterns: [PatternCount]
 
     public init(plan: Plan) {
-        let items = plan.items
+        // Covered items travel with their kept folder; they are not planned on their own.
+        let items = plan.items.filter { $0.covered == false }
         func count(_ predicate: (PlanItem) -> Bool) -> Int { items.filter(predicate).count }
         let reviewItems = items.filter { $0.status == .review }
 

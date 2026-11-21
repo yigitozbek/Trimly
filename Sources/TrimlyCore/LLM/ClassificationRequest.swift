@@ -16,6 +16,8 @@ public struct ClassificationRequest: Sendable, Equatable {
     public var folderSampleNames: [String]
     public var contentPreview: String?
     public var allowedFolders: [String]
+    /// Path below the scanned root for nested items (`Rastgele/alt/fatura.pdf`); `nil` at the top level.
+    public var relativePath: String?
 
     public init(
         name: String,
@@ -31,7 +33,8 @@ public struct ClassificationRequest: Sendable, Equatable {
         ruleHintCategoryFolder: String?,
         folderSampleNames: [String],
         contentPreview: String?,
-        allowedFolders: [String]
+        allowedFolders: [String],
+        relativePath: String? = nil
     ) {
         self.name = name
         self.fileExtension = fileExtension
@@ -47,6 +50,7 @@ public struct ClassificationRequest: Sendable, Equatable {
         self.folderSampleNames = folderSampleNames
         self.contentPreview = contentPreview
         self.allowedFolders = allowedFolders
+        self.relativePath = relativePath
     }
 
     /// `host + path` of the first download URL; query and fragment (often tokens) are dropped.

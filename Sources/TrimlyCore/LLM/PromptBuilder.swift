@@ -15,6 +15,9 @@ public enum PromptBuilder {
 
     public static func userMessage(_ r: ClassificationRequest) -> String {
         var lines: [String] = ["Ad: \(r.name)"]
+        if let path = r.relativePath, let slash = path.lastIndex(of: "/") {
+            lines.append("Konum: \(path[..<slash])/")
+        }
         if r.fileExtension.isEmpty == false { lines.append("Uzantı: \(r.fileExtension)") }
         lines.append("Tür: \(kindName(r.kind))")
         if let size = r.sizeBytes { lines.append("Boyut: \(size) bayt") }

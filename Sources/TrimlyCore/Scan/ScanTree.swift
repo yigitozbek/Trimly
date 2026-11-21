@@ -4,9 +4,12 @@ import Foundation
 public struct ScanTree: Sendable {
     public let items: [FileItem]
     public let truncated: Bool
+    /// Relative paths of the folders whose contents were listed.
+    public let descended: Set<String>
 
-    public init(items: [FileItem], truncated: Bool) {
+    public init(items: [FileItem], truncated: Bool, descended: Set<String> = []) {
         self.items = items
         self.truncated = truncated
+        self.descended = descended
     }
 }

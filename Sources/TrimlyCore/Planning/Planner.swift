@@ -29,7 +29,6 @@ public struct Planner: Sendable {
     @concurrent
     public func makePlan(root: URL, useLLM: Bool, resume: Bool = true) async throws -> Plan {
         let startedAt = now()
-        let scanned = try FolderScanner().scan(root: root)
         let resumable = resume ? try store.latestResumable(root: root, now: startedAt).flatMap { $0.isReusable(with: settings) ? $0 : nil } : nil
         var plan = resumable
             ?? Plan(id: newPlanID(root: root, at: startedAt), root: root, createdAt: startedAt, state: .inProgress, settingsSnapshot: settings, items: [])
@@ -39,11 +38,17 @@ public struct Planner: Sendable {
         let detector = CriticalDetector(settings: settings)
         let rules = RuleEngine(settings: settings)
         let llm = useLLM && settings.llmEnabled ? provider : nil
+        let tree = try Self.scanTree(root: root, settings: settings, ignore: ignore)
+        let skipReasons = tree.items.map { ignore.skipReason(for: $0) }
+        let pinned = Self.pinnedFolders(tree.items, skipReasons: skipReasons, ignore: ignore)
 
+        // Pass 1: skip reasons, fixed folders, already-organized names and folder modes.
         var items: [PlanItem] = []
-        var pending: [(index: Int, file: FileItem, rule: RuleMatch)] = []
-        for file in scanned {
+        var idByPath: [String: String] = [:]
+        var unclassified: [(index: Int, file: FileItem, rule: RuleMatch)] = []
+        for (offset, file) in tree.items.enumerated() {
             let id = Self.itemID(for: file.url)
+            idByPath[file.relativePath] = id
             if let kept = previous[id], kept.classified {
                 items.append(kept)
                 continue
@@ -56,33 +61,60 @@ public struct Planner: Sendable {
                 fileExtension: file.kind == .folder ? "" : file.fileExtension,
                 resolvedDate: DateResolver.resolve(file),
                 status: .review,
-                sourceFingerprint: SourceFingerprint(size: file.sizeBytes, modifiedAt: file.modifiedAt ?? startedAt)
+                sourceFingerprint: SourceFingerprint(size: file.sizeBytes, modifiedAt: file.modifiedAt ?? startedAt),
+                relativePath: file.relativePath,
+                depth: file.depth,
+                parentID: file.parentRelativePath.flatMap { idByPath[$0] }
             )
             // Computed for skipped items too: a manual `set` may un-skip them later.
             item.critical = detector.isCritical(file)
-            if let reason = ignore.skipReason(for: file) {
+            if let reason = skipReasons[offset] {
                 item.status = .skipped
                 item.skipReason = reason
                 item.classified = true
-            } else if ignore.isCategoryFolder(file) {
+            } else if ignore.isCategoryFolder(file) || ignore.isYearFolderInCategory(file) {
                 // Never moved itself; its contents are planned (nested scanning).
                 item.status = .skipped
-                item.skipReason = Self.categoryFolderReason
+                item.skipReason = ignore.isCategoryFolder(file) ? Self.categoryFolderReason : Self.yearFolderReason
                 item.folderMode = .distribute
                 item.classified = true
             } else {
-                let rule = rules.match(file)
-                if rule.strength == .decisive && file.kind != .folder {
-                    Self.applyDecisive(rule, to: &item, settings: settings)
-                } else if llm != nil {
-                    pending.append((items.count, file, rule))
+                let organized = OrganizedName.match(file, settings: settings)
+                if file.kind == .folder {
+                    let isPinned = pinned.contains(file.relativePath)
+                    item.folderMode = organized != nil && isPinned == false
+                        ? .keep
+                        : FolderModeDecider.mode(for: file, descended: tree.descended.contains(file.relativePath), hasPinnedDescendant: isPinned, settings: settings)
+                }
+                if let organized, item.folderMode != .distribute {
+                    Self.applyOrganized(organized, to: &item)
                 } else {
-                    Self.applyFallback(rule, to: &item, reason: .weakRuleNoLLM, message: nil, settings: settings)
+                    unclassified.append((items.count, file, rules.match(file)))
                 }
             }
             items.append(item)
         }
         plan.items = items
+        plan.truncated = tree.truncated
+        CoverageResolver.apply(&plan)
+
+        // Pass 2: rules for everything; the LLM only for weak matches that are planned on their own (not covered).
+        var pending: [(index: Int, file: FileItem, rule: RuleMatch)] = []
+        for entry in unclassified {
+            var item = plan.items[entry.index]
+            if entry.file.kind == .folder && item.folderMode == .distribute {
+                Self.applyFallback(entry.rule, to: &item, reason: .weakRuleNoLLM, message: nil, settings: settings)
+                item.status = .review
+                item.reviewReason = .mixedFolder
+            } else if entry.rule.strength == .decisive && entry.file.kind != .folder {
+                Self.applyDecisive(entry.rule, to: &item, settings: settings)
+            } else if llm != nil && item.covered == false {
+                pending.append(entry)
+            } else {
+                Self.applyFallback(entry.rule, to: &item, reason: .weakRuleNoLLM, message: nil, settings: settings)
+            }
+            plan.items[entry.index] = item
+        }
         try store.save(plan)
 
         if let llm {
@@ -128,12 +160,48 @@ public struct Planner: Sendable {
     }
 
     static func finalize(_ plan: inout Plan) {
+        CoverageResolver.apply(&plan)
         TargetAssigner.assign(&plan)
         for index in plan.items.indices {
             let item = plan.items[index]
-            plan.items[index].approved = item.status == .ready && item.critical == false && item.kind != .folder
+            plan.items[index].approved = item.status == .ready && item.critical == false && item.kind != .folder && item.covered == false
         }
         plan.state = .ready
+    }
+
+    /// The tree the planner (and stage 2) works on: never descends into skipped folders (projects, recent, links…).
+    static func scanTree(root: URL, settings: Settings, ignore: IgnoreRules) throws -> ScanTree {
+        try FolderScanner().scanTree(root: root, maxDepth: max(settings.scanDepth, 1)) { ignore.skipReason(for: $0) == nil }
+    }
+
+    /// Folders that must not move as one unit because a descendant is skipped for a reason that pins it in place.
+    private static func pinnedFolders(_ files: [FileItem], skipReasons: [String?], ignore: IgnoreRules) -> Set<String> {
+        var pinned: Set<String> = []
+        for (file, reason) in zip(files, skipReasons) where reason != nil && ignore.movesWithParent(file) == false {
+            var ancestor = file.parentRelativePath
+            while let path = ancestor, pinned.insert(path).inserted {
+                ancestor = path.lastIndex(of: "/").map { String(path[..<$0]) }
+            }
+        }
+        return pinned
+    }
+
+    /// Already carries Trimly's name inside its category folder: same category and description, so the target is
+    /// the item itself in place (`Zaten düzenli`) or the same name in the central archive.
+    private static func applyOrganized(_ match: OrganizedName.Match, to item: inout PlanItem) {
+        item.categoryID = match.categoryID
+        item.description = match.description
+        item.confidence = 1.0
+        item.decidedBy = .rule
+        item.classified = true
+        item.reason = "Zaten Trimly adıyla kategori klasöründe"
+        if item.kind == .folder {
+            item.status = item.critical ? .critical : .review
+            item.reviewReason = item.critical ? nil : .folder
+        } else {
+            item.status = item.critical ? .critical : .ready
+            item.reviewReason = nil
+        }
     }
 
     /// Categories whose contents are sensitive: an LLM verdict here makes the item critical (no auto-approval).
@@ -164,7 +232,8 @@ public struct Planner: Sendable {
             ruleHintCategoryFolder: settings.category(id: rule.categoryID)?.folder.value(language),
             folderSampleNames: file.folderSampleNames,
             contentPreview: preview,
-            allowedFolders: settings.categories.map { $0.folder.value(language) }
+            allowedFolders: settings.categories.map { $0.folder.value(language) },
+            relativePath: file.depth > 0 ? file.relativePath : nil
         )
     }
 
