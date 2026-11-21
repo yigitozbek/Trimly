@@ -2,7 +2,7 @@ import Foundation
 
 /// Applies the approved items of a plan. Moves only (`FileManager.moveItem`, which refuses to overwrite),
 /// each one journaled `pending` → move → `done`, so every run can be undone.
-public struct Executor {
+public struct Executor: Sendable {
     private let directory: DataDirectory
     private let now: @Sendable () -> Date
 
@@ -11,7 +11,16 @@ public struct Executor {
         self.now = now
     }
 
-    public func apply(planID: String) throws -> RunSummary {
+    /// `@concurrent`: file moves never run on a caller's main actor. Holds the data-directory lock throughout.
+    @concurrent
+    public func apply(planID: String) async throws -> RunSummary {
+        let lock = try DataLock.acquire(in: directory)
+        return try withExtendedLifetime(lock) {
+            try applyLocked(planID: planID)
+        }
+    }
+
+    private func applyLocked(planID: String) throws -> RunSummary {
         let store = PlanStore(directory: directory)
         var plan = try store.load(id: planID)
         switch plan.state {

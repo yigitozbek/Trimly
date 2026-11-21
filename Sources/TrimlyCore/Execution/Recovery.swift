@@ -31,10 +31,16 @@ public enum Recovery {
 
     @discardableResult
     public static func recoverAll(in directory: DataDirectory) throws -> Int {
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.runsURL.path)) ?? []
-        // One unreadable journal must not block every command; it is skipped and left for inspection.
-        return names.filter { $0.hasSuffix(".jsonl") }.reduce(0) { total, name in
-            total + ((try? recover(journalAt: directory.runsURL.appending(path: name))) ?? 0)
+        // A live apply/undo (app or CLI) holds the lock and may have legitimately pending lines: leave them alone.
+        guard let lock = try? DataLock.acquire(in: directory) else {
+            return 0
+        }
+        return withExtendedLifetime(lock) {
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.runsURL.path)) ?? []
+            // One unreadable journal must not block every command; it is skipped and left for inspection.
+            return names.filter { $0.hasSuffix(".jsonl") }.reduce(0) { total, name in
+                total + ((try? recover(journalAt: directory.runsURL.appending(path: name))) ?? 0)
+            }
         }
     }
 }

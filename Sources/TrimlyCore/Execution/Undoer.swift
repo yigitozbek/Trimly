@@ -3,14 +3,23 @@ import Foundation
 /// Replays a run's journal backwards. Skips (and reports) anything that changed since the move;
 /// removes only folders Trimly created, and only when empty (a lone Finder `.DS_Store` counts as empty).
 /// Undo steps are journaled too, so running it twice is safe and a partial undo can be resumed.
-public struct Undoer {
+public struct Undoer: Sendable {
     private let directory: DataDirectory
 
     public init(directory: DataDirectory) {
         self.directory = directory
     }
 
-    public func undo(runID: String?) throws -> UndoSummary {
+    /// `@concurrent`: file moves never run on a caller's main actor. Holds the data-directory lock throughout.
+    @concurrent
+    public func undo(runID: String?) async throws -> UndoSummary {
+        let lock = try DataLock.acquire(in: directory)
+        return try withExtendedLifetime(lock) {
+            try undoLocked(runID: runID)
+        }
+    }
+
+    private func undoLocked(runID: String?) throws -> UndoSummary {
         let url = try journalURL(for: runID)
         try Recovery.recover(journalAt: url)
         var journal = try Journal.open(at: url)

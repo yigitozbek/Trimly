@@ -15,7 +15,7 @@ struct ExecutorTests {
         let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         let target = try #require(plan.item(shotName).target)
 
-        let summary = try Executor(directory: f.data).apply(planID: plan.id)
+        let summary = try await Executor(directory: f.data).apply(planID: plan.id)
 
         #expect(FileManager.default.fileExists(atPath: target.path))
         #expect(FileManager.default.fileExists(atPath: f.root.appending(path: shotName).path) == false)
@@ -32,9 +32,9 @@ struct ExecutorTests {
     @Test func refusesAppliedPlan() async throws {
         let f = try PlannerFixture()
         let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
-        _ = try Executor(directory: f.data).apply(planID: plan.id)
-        #expect(throws: ExecutionError.alreadyApplied) {
-            try Executor(directory: f.data).apply(planID: plan.id)
+        _ = try await Executor(directory: f.data).apply(planID: plan.id)
+        await #expect(throws: ExecutionError.alreadyApplied) {
+            try await Executor(directory: f.data).apply(planID: plan.id)
         }
     }
 
@@ -43,7 +43,7 @@ struct ExecutorTests {
         let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         let source = f.root.appending(path: shotName)
         try Data("degisti".utf8).write(to: source)
-        let summary = try Executor(directory: f.data).apply(planID: plan.id)
+        let summary = try await Executor(directory: f.data).apply(planID: plan.id)
         #expect(summary.skipped.contains(SkippedEntry(path: source.path, reason: "Kaynak değişmiş")))
         #expect(FileManager.default.fileExists(atPath: source.path))
     }
@@ -53,7 +53,7 @@ struct ExecutorTests {
         let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         let source = f.root.appending(path: shotName)
         try FileManager.default.removeItem(at: source)
-        let summary = try Executor(directory: f.data).apply(planID: plan.id)
+        let summary = try await Executor(directory: f.data).apply(planID: plan.id)
         #expect(summary.skipped.contains(SkippedEntry(path: source.path, reason: "Kaynak bulunamadı")))
     }
 
@@ -64,7 +64,7 @@ struct ExecutorTests {
         try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("orijinal".utf8).write(to: target)
 
-        _ = try Executor(directory: f.data).apply(planID: plan.id)
+        _ = try await Executor(directory: f.data).apply(planID: plan.id)
 
         #expect(try String(contentsOf: target, encoding: .utf8) == "orijinal")
         let suffixed = target.deletingLastPathComponent().appending(path: "2025-03-14_Ekran-Goruntusu_10-22-31_2.png")
@@ -80,7 +80,7 @@ struct ExecutorTests {
         try f.store.save(plan)
         let target = try #require(plan.item("Album").target)
 
-        let summary = try Executor(directory: f.data).apply(planID: plan.id)
+        let summary = try await Executor(directory: f.data).apply(planID: plan.id)
 
         #expect(FileManager.default.fileExists(atPath: target.appending(path: "p0.jpg").path))
         #expect(FileManager.default.fileExists(atPath: target.appending(path: "secilenler/1.jpg").path))
@@ -91,7 +91,7 @@ struct ExecutorTests {
     @Test(.tags(.edgeCase)) func rerunAfterApplyFindsNothing() async throws {
         let f = try PlannerFixture()
         let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
-        _ = try Executor(directory: f.data).apply(planID: plan.id)
+        _ = try await Executor(directory: f.data).apply(planID: plan.id)
         let again = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         #expect(again.id != plan.id)
         #expect(again.items.contains { $0.approved } == false)

@@ -36,7 +36,7 @@ struct ApplyCommand: AsyncParsableCommand {
                     return
                 }
             }
-            let summary = try Executor(directory: env.directory).apply(planID: planID)
+            let summary = try await Executor(directory: env.directory).apply(planID: planID)
             print("Taşınan: \(summary.moved) · Atlanan: \(summary.skipped.count) · Hatalı: \(summary.failed.count)")
             summary.skipped.forEach { print("  atlandı: \($0.path) — \($0.reason)") }
             summary.failed.forEach { print("  hata: \($0.path) — \($0.reason)") }
