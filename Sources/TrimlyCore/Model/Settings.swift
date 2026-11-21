@@ -111,19 +111,19 @@ public struct Settings: Codable, Equatable, Sendable {
         categories.first { $0.id == id }
     }
 
-    /// Finds a category by its folder name in either language, ignoring case.
+    /// Finds a category by its folder name in any language, ignoring case.
     public func category(forFolderName name: String) -> Category? {
         let needle = name.lowercased()
-        return categories.first { $0.folder.tr.lowercased() == needle || $0.folder.en.lowercased() == needle }
+        return categories.first { $0.folder.allValues.contains { $0.lowercased() == needle } }
     }
 
-    /// Folder and tag names in both languages; used to strip category words from descriptions.
+    /// Folder and tag names in every language; used to strip category words from descriptions.
     public func categoryTerms(_ category: Category) -> [String] {
-        [category.folder.tr, category.tag.tr, category.folder.en, category.tag.en]
+        category.folder.allValues + category.tag.allValues
     }
 
-    /// Lowercased folder names of every category in both languages.
+    /// Lowercased folder names of every category in every language.
     public var allCategoryFolderNames: Set<String> {
-        Set(categories.flatMap { [$0.folder.tr.lowercased(), $0.folder.en.lowercased()] })
+        Set(categories.flatMap { $0.folder.allValues.map { $0.lowercased() } })
     }
 }

@@ -19,8 +19,9 @@ struct NamingTab: View {
             }
             .pickerStyle(.radioGroup)
             Picker("Kategori dili", selection: $model.settings.categoryLanguage) {
-                Text("Türkçe").tag(Language.tr)
-                Text("English").tag(Language.en)
+                ForEach(Language.allCases) { language in
+                    Text(language.displayName).tag(language)
+                }
             }
             SettingsFootnote(error: model.saveError)
         }

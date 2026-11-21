@@ -44,7 +44,7 @@ public enum TargetAssigner {
                     preset: settings.namingPreset,
                     day: DateResolver.dayString(item.resolvedDate),
                     categoryTag: category.tag.value(language),
-                    description: item.description ?? (language == .tr ? "Dosya" : "File"),
+                    description: item.description ?? language.unnamedFileLabel,
                     originalName: item.name,
                     fileExtension: item.fileExtension
                 )

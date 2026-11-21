@@ -16,8 +16,8 @@ public enum OrganizedName {
 
     public static func match(_ item: FileItem, settings: Settings) -> Match? {
         guard item.depth > 0,
-              let top = item.relativePath.split(separator: "/").first?.lowercased(),
-              let category = settings.categories.first(where: { $0.folder.tr.lowercased() == top || $0.folder.en.lowercased() == top }) else {
+              let top = item.relativePath.split(separator: "/").first.map(String.init),
+              let category = settings.category(forFolderName: top) else {
             return nil
         }
         if item.kind == .folder {
@@ -26,13 +26,12 @@ public enum OrganizedName {
         }
         let ext = item.fileExtension
         let stem = ext.isEmpty ? Substring(item.name) : item.name.dropLast(ext.count + 1)
-        let tag = category.tag.value(settings.categoryLanguage) + "_"
         let description: Substring?
         switch settings.namingPreset {
         case .dateCategoryDescription:
-            description = withoutDay(stem).flatMap { $0.hasPrefix(tag) ? $0.dropFirst(tag.count) : nil }
+            description = withoutDay(stem).flatMap { descriptionAfterAnyTag($0, category: category) }
         case .categoryDescription:
-            description = stem.hasPrefix(tag) ? stem.dropFirst(tag.count) : nil
+            description = descriptionAfterAnyTag(stem, category: category)
         case .dateDescription:
             description = withoutDay(stem)
         case .originalNormalized:
@@ -44,6 +43,17 @@ public enum OrganizedName {
             return nil
         }
         return Match(categoryID: category.id, description: String(description))
+    }
+
+    /// Accepts a tag prefix written in any category language (e.g. after the user switches language).
+    private static func descriptionAfterAnyTag(_ stem: Substring, category: Category) -> Substring? {
+        for tag in category.tag.allValues {
+            let prefix = tag + "_"
+            if stem.hasPrefix(prefix) {
+                return stem.dropFirst(prefix.count)
+            }
+        }
+        return nil
     }
 
     /// Drops a leading `YYYY-MM-DD_`.

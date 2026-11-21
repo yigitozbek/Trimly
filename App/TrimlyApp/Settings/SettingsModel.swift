@@ -34,10 +34,21 @@ final class SettingsModel {
             preset: preset,
             day: DateResolver.dayString(environment.now()),
             categoryTag: settings.category(id: "invoices")?.tag.value(language) ?? "Fatura",
-            description: language == .tr ? "Enerjisa-Ocak" : "Enerjisa-January",
+            description: Self.exampleDescription(for: language),
             originalName: "download (3).pdf",
             fileExtension: "pdf"
         )
+    }
+
+    private static func exampleDescription(for language: Language) -> String {
+        switch language {
+        case .tr: "Enerjisa-Ocak"
+        case .en: "Enerjisa-January"
+        case .ja: "Enerjisa-1月"
+        case .fr: "Enerjisa-Janvier"
+        case .it: "Enerjisa-Gennaio"
+        case .ko: "Enerjisa-1월"
+        }
     }
 
     private func save() {

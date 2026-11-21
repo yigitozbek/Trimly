@@ -37,4 +37,13 @@ struct OrganizedNameTests {
         let item = FileItem.stub("Fatura_Enerjisa.pdf", depth: 1, parent: "Faturalar")
         #expect(OrganizedName.match(item, settings: settings)?.description == "Enerjisa")
     }
+
+    @Test func matchesFoldersAndTagsInOtherLanguages() {
+        let item = FileItem.stub("2025-02-10_請求書_Enerjisa.pdf", depth: 1, parent: "請求書")
+        #expect(OrganizedName.match(item, settings: settings) == OrganizedName.Match(categoryID: "invoices", description: "Enerjisa"))
+        let french = FileItem.stub("Facture_EDF.pdf", depth: 1, parent: "Factures")
+        var categoryPreset = Settings()
+        categoryPreset.namingPreset = .categoryDescription
+        #expect(OrganizedName.match(french, settings: categoryPreset)?.description == "EDF")
+    }
 }

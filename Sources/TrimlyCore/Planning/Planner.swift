@@ -317,7 +317,7 @@ public struct Planner: Sendable {
             }
         }
         let slug = Normalizer.slug(stem)
-        return slug.isEmpty ? (settings.categoryLanguage == .tr ? "Dosya" : "File") : slug
+        return slug.isEmpty ? settings.categoryLanguage.unnamedFileLabel : slug
     }
 
     // MARK: - Private

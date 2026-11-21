@@ -21,6 +21,14 @@ struct SettingsModelTests {
         #expect(model.namingExample(for: .keepOriginal) == "download (3).pdf")
         model.settings.categoryLanguage = .en
         #expect(model.namingExample(for: .categoryDescription) == "Invoice_Enerjisa-January.pdf")
+        model.settings.categoryLanguage = .ja
+        #expect(model.namingExample(for: .categoryDescription) == "請求書_Enerjisa-1月.pdf")
+        model.settings.categoryLanguage = .fr
+        #expect(model.namingExample(for: .categoryDescription) == "Facture_Enerjisa-Janvier.pdf")
+        model.settings.categoryLanguage = .it
+        #expect(model.namingExample(for: .categoryDescription) == "Fattura_Enerjisa-Gennaio.pdf")
+        model.settings.categoryLanguage = .ko
+        #expect(model.namingExample(for: .categoryDescription) == "청구서_Enerjisa-1월.pdf")
     }
 
     @Test(.tags(.edgeCase)) func rescanUsesUpdatedSettings() async throws {

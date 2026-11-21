@@ -34,9 +34,25 @@ struct SettingsTests {
         let s = Settings()
         #expect(s.category(id: "invoices")?.folder.tr == "Faturalar")
         #expect(s.category(id: "invoices")?.tag.en == "Invoice")
+        #expect(s.category(id: "invoices")?.folder.ja == "請求書")
+        #expect(s.category(id: "invoices")?.folder.fr == "Factures")
+        #expect(s.category(id: "invoices")?.folder.it == "Fatture")
+        #expect(s.category(id: "invoices")?.folder.ko == "청구서")
         #expect(s.category(forFolderName: "faturalar")?.id == "invoices")
         #expect(s.category(forFolderName: "Invoices")?.id == "invoices")
+        #expect(s.category(forFolderName: "請求書")?.id == "invoices")
+        #expect(s.category(forFolderName: "Factures")?.id == "invoices")
         #expect(s.allCategoryFolderNames.contains("ekran-goruntuleri"))
+        #expect(s.allCategoryFolderNames.contains("스크린샷"))
+    }
+
+    @Test func localizedTextFallsBackForLegacyJSON() throws {
+        let data = Data(#"{"tr":"Faturalar","en":"Invoices"}"#.utf8)
+        let text = try JSONCoding.decoder.decode(LocalizedText.self, from: data)
+        #expect(text.tr == "Faturalar" && text.en == "Invoices")
+        #expect(text.ja == "Invoices" && text.fr == "Invoices")
+        #expect(text.it == "Invoices" && text.ko == "Invoices")
+        #expect(Language.allCases.map(\.rawValue) == ["tr", "en", "ja", "fr", "it", "ko"])
     }
 
     @Test func planRoundTripsThroughJSON() throws {

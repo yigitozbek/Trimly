@@ -20,6 +20,14 @@ struct TagRuleTests {
         #expect(match(.stub("a.pdf", tags: ["Resmi Evrak"])).categoryID == "officialDocs")
     }
 
+    @Test func categoryTagsMatchEveryLanguage() {
+        #expect(match(.stub("a.pdf", tags: ["Invoice"])).categoryID == "invoices")
+        #expect(match(.stub("a.pdf", tags: ["請求書"])).categoryID == "invoices")
+        #expect(match(.stub("a.pdf", tags: ["Facture"])).categoryID == "invoices")
+        #expect(match(.stub("a.pdf", tags: ["Fattura"])).categoryID == "invoices")
+        #expect(match(.stub("a.pdf", tags: ["청구서"])).categoryID == "invoices")
+    }
+
     @Test func firstMatchingTagWins() {
         #expect(match(.stub("a.pdf", tags: ["Kırmızı", "Sözleşme", "Fatura"])).categoryID == "contracts")
     }
