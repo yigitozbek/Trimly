@@ -23,5 +23,10 @@ struct TrimlyApp: App {
         Settings {
             SettingsView()
         }
+        .commands {
+            CommandGroup(after: .windowArrangement) {
+                HistoryCommand()
+            }
+        }
     }
 }

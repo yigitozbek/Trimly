@@ -3,6 +3,10 @@ import TrimlyCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        _ = LaunchState.shared
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let directory = AppEnvironment.live.directory
         try? directory.ensureExists()

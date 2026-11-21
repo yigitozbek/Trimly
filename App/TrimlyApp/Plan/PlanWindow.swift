@@ -22,7 +22,7 @@ struct PlanWindow: View {
         guard root == nil, case .organize(let folder)? = try? URLRouter.route(url) else {
             return
         }
-        LaunchState.shared.launchedByURL = true
         root = folder
+        LaunchState.shared.noteURLOpen()
     }
 }

@@ -5,6 +5,8 @@ import TrimlyCore
 struct StartView: View {
     @Environment(\.appEnvironment) private var environment
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+    private let launchState = LaunchState.shared
     @State private var runs: RunsModel?
     @State private var status = OllamaStatus.unknown
     @State private var isPickingFolder = false
@@ -45,6 +47,12 @@ struct StartView: View {
         .frame(minWidth: 520, minHeight: 420)
         .fileImporter(isPresented: $isPickingFolder, allowedContentTypes: [.folder], onCompletion: folderPicked)
         .task(load)
+        .onChange(of: launchState.launchedByURL, initial: true) { _, launchedByURL in
+            // The plan window already exists when this flips, so the app never passes through zero windows.
+            if launchedByURL {
+                dismissWindow(id: "start")
+            }
+        }
     }
 
     private func load() async {
