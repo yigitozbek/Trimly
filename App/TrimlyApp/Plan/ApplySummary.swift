@@ -7,4 +7,6 @@ struct ApplySummary: Equatable {
     let criticalApproved: [PlanItem]
     /// Exactly the items shown; apply refuses if the plan's approvals differ by then.
     let itemIDs: Set<String>
+    /// The plan's settings remove folders the run empties (recreated on undo).
+    var removesEmptyFolders = false
 }

@@ -124,7 +124,10 @@ final class PlanSession {
     }
 
     var stage2CandidateCount: Int {
-        plan?.items.filter { ($0.status == .review || $0.status == .critical) && $0.approved == false && $0.covered == false }.count ?? 0
+        // Same candidates as `Planner.review`: covered items and mixed folders never get a second opinion.
+        plan?.items.filter {
+            ($0.status == .review || $0.status == .critical) && $0.approved == false && $0.covered == false && $0.folderMode != .distribute
+        }.count ?? 0
     }
 
     var isReadOnly: Bool {
@@ -156,7 +159,13 @@ final class PlanSession {
         let byCategory = Dictionary(grouping: approved, by: { $0.categoryID ?? "other" })
             .map { CategoryCount(title: snapshot.category(id: $0.key)?.folder.value(snapshot.categoryLanguage) ?? $0.key, count: $0.value.count) }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.title < $1.title }
-        return ApplySummary(count: approved.count, byCategory: byCategory, criticalApproved: approved.filter(\.critical), itemIDs: Set(approved.map(\.id)))
+        return ApplySummary(
+            count: approved.count,
+            byCategory: byCategory,
+            criticalApproved: approved.filter(\.critical),
+            itemIDs: Set(approved.map(\.id)),
+            removesEmptyFolders: snapshot.removeEmptyFolders
+        )
     }
 
     // MARK: Scanning

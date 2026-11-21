@@ -66,4 +66,19 @@ struct PlanSessionNestedTests {
         try store.save(plan)
         #expect(await started(f).scanNotice == "5.000 öğe sınırına ulaşıldı; daha derindeki öğeler taranmadı.")
     }
+
+    @Test func stage2CountSkipsMixedFolders() async throws {
+        let f = try fixture(["notlar.txt", "Rastgele/a.pdf", "Rastgele/b.jpg", "Rastgele/c.dmg"])
+        let session = await started(f)
+        // notlar.txt and Rastgele/a.pdf; the mixed folder itself never gets a second opinion.
+        #expect(session.stage2CandidateCount == 2)
+    }
+
+    @Test func applySummaryTellsWhenEmptiedFoldersAreRemoved() async throws {
+        let f = try fixture(["Rastgele/a.pdf", "Rastgele/b.jpg"])
+        #expect(await started(f).applySummary.removesEmptyFolders == false)
+        // Changed settings make the saved plan non-reusable, so the next window plans afresh.
+        try f.writeSettings { $0.removeEmptyFolders = true }
+        #expect(await started(f).applySummary.removesEmptyFolders)
+    }
 }

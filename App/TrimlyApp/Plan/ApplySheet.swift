@@ -10,7 +10,9 @@ struct ApplySheet: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("\(summary.count) öğe taşınacak")
                 .font(.title2.bold())
-            Text("Her taşıma kaydedilir ve Geri Al ile geri alınabilir. Hiçbir dosya silinmez veya üzerine yazılmaz.")
+            Text(summary.removesEmptyFolders
+                 ? "Her taşıma kaydedilir ve Geri Al ile geri alınabilir. Hiçbir dosya üzerine yazılmaz. Boşalan klasörler kaldırılır; Geri Al onları yeniden oluşturur."
+                 : "Her taşıma kaydedilir ve Geri Al ile geri alınabilir. Hiçbir dosya silinmez veya üzerine yazılmaz.")
                 .foregroundStyle(.secondary)
             GroupBox("Kategoriler") {
                 VStack(alignment: .leading, spacing: 4) {
