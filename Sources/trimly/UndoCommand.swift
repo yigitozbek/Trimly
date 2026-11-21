@@ -14,7 +14,7 @@ struct UndoCommand: AsyncParsableCommand {
         try await Output.guarding {
             let env = try global.environment()
             let summary = try await Undoer(directory: env.directory).undo(runID: runID)
-            print("\(summary.runID): geri yüklenen \(summary.restored) · kaldırılan klasör \(summary.removedFolders) · atlanan \(summary.skipped.count)")
+            print("\(summary.runID): geri yüklenen \(summary.restored) · etiketi geri alınan \(summary.restoredTags) · kaldırılan klasör \(summary.removedFolders) · atlanan \(summary.skipped.count)")
             summary.skipped.forEach { print("  atlandı: \($0.path) — \($0.reason)") }
         }
     }

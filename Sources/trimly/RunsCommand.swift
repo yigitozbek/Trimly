@@ -19,7 +19,7 @@ struct RunsCommand: AsyncParsableCommand {
             formatter.dateFormat = "yyyy-MM-dd HH:mm"
             for run in runs {
                 let state = run.undone ? "geri alındı" : "aktif"
-                print("\(run.runID)  \(formatter.string(from: run.at))  taşınan \(run.moved)  \(state)  \(run.root)")
+                print("\(run.runID)  \(formatter.string(from: run.at))  taşınan \(run.moved)  etiket \(run.tagged)  \(state)  \(run.root)")
             }
         }
     }

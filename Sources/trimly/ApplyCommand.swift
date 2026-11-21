@@ -22,16 +22,20 @@ struct ApplyCommand: AsyncParsableCommand {
             case .inProgress: throw ExecutionError.notReady
             case .ready: break
             }
-            let approved = plan.items.filter { $0.approved && $0.status != .skipped && $0.target != nil }
+            let approved = plan.items.filter { $0.approved && $0.status != .skipped && $0.hasAction }
             guard approved.isEmpty == false else {
-                print("Onaylı öğe yok; hiçbir şey taşınmadı.")
+                print("Onaylı öğe yok; hiçbir şey yapılmadı.")
                 return
             }
-            print("\(approved.count) öğe taşınacak.")
+            if approved.contains(where: { $0.target != nil }) {
+                print("\(approved.count) öğe taşınacak.")
+            } else {
+                print("\(approved.count) öğeye etiket eklenecek.")
+            }
             let critical = approved.filter(\.critical)
             if critical.isEmpty == false {
                 print("Elle onaylanmış kritik öğeler:")
-                critical.forEach { print("  🔒 \($0.name) → \($0.target.map { Output.relative($0, to: plan.root) } ?? "—")") }
+                critical.forEach { print("  🔒 \($0.name) → \(Output.targetColumn($0, root: plan.root))") }
             }
             if yes == false {
                 print("Uygulansın mı? [e/H] ", terminator: "")
@@ -42,7 +46,7 @@ struct ApplyCommand: AsyncParsableCommand {
                 }
             }
             let summary = try await Executor(directory: env.directory).apply(planID: planID)
-            print("Taşınan: \(summary.moved) · Atlanan: \(summary.skipped.count) · Hatalı: \(summary.failed.count)")
+            print("Taşınan: \(summary.moved) · Etiketlenen: \(summary.tagged) · Atlanan: \(summary.skipped.count) · Hatalı: \(summary.failed.count)")
             summary.skipped.forEach { print("  atlandı: \($0.path) — \($0.reason)") }
             summary.failed.forEach { print("  hata: \($0.path) — \($0.reason)") }
             print("Geri almak için: trimly undo \(summary.runID)")

@@ -57,10 +57,14 @@ enum Output {
 
     static func row(_ item: PlanItem, root: URL, coveredCount: Int = 0) -> String {
         let mark = item.approved ? "✓" : (item.status == .critical ? "🔒" : "✗")
-        let target = item.target.map { relative($0, to: root) } ?? "—"
+        let target = targetColumn(item, root: root)
         let confidence = item.confidence.map { String(format: "%.2f", $0) } ?? "  — "
         // A locked folder offers no choice, so it must not say "dağıt / bütün tut seçin".
-        let note = item.modeLock != nil ? "tek parça taşınamaz" : (item.reason ?? item.reviewReason.map(reviewLabel) ?? "")
+        var note = item.modeLock != nil ? "tek parça taşınamaz" : (item.reason ?? item.reviewReason.map(reviewLabel) ?? "")
+        if item.existingTags.isEmpty == false {
+            let tagsNote = "etiket: " + item.existingTags.joined(separator: ", ")
+            note = note.isEmpty ? tagsNote : "\(note)  \(tagsNote)"
+        }
         let mode = switch item.folderMode {
         case .distribute: item.modeLock.map { "[dağıt · \($0)]" } ?? "[dağıt]"
         case .keep: item.listed ? "[bütün tut · \(coveredCount) öğe]" : "[bütün tut · içi taranmadı]"
@@ -69,6 +73,21 @@ enum Output {
         return [mark, pad(statusLabel(item.status), 8), item.id, pad(truncate(item.relativePath, 48), 48), mode, "→", target, confidence, decisionLabel(item.decidedBy), note]
             .filter { $0.isEmpty == false }
             .joined(separator: "  ")
+    }
+
+    /// `tagOnly` → `＋ Fatura etiketi`; move + tag → `Faturalar/… ＋Fatura`; otherwise the relative target or `—`.
+    static func targetColumn(_ item: PlanItem, root: URL) -> String {
+        let tagLabel = item.tagsToAdd.first
+        if let path = item.target.map({ relative($0, to: root) }) {
+            if let tagLabel {
+                return "\(path) ＋\(tagLabel)"
+            }
+            return path
+        }
+        if let tagLabel {
+            return "＋ \(tagLabel) etiketi"
+        }
+        return "—"
     }
 
     static func coveredCount(of folder: PlanItem, in plan: Plan) -> Int {

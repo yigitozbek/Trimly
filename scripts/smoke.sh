@@ -29,4 +29,20 @@ $BIN apply "$PLAN2" --yes --data-dir "$DATA"
 test -f "$ROOT2/Diger/Rastgele/a.pdf" && test -d "$ROOT2/Tatil"
 $BIN undo --data-dir "$DATA"
 test -f "$ROOT2/Rastgele/a.pdf" && test -f "$ROOT2/Rastgele/b.jpg" && test ! -d "$ROOT2/Diger"
+
+# Tag-only: nothing moves; the category tag is written in place and cleared on undo.
+ROOT3="$TMP/root3"; DATA3="$TMP/data3"; mkdir -p "$ROOT3" "$DATA3"
+print '{"recentMinutes":0,"targetMode":"tagOnly"}' > "$DATA3/settings.json"
+print x > "$ROOT3/fatura-ocak.pdf"
+OUT3=$($BIN plan "$ROOT3" --no-llm --data-dir "$DATA3")
+print -r -- "$OUT3" | grep -q "＋ Fatura etiketi"
+PLAN3=$(print -r -- "$OUT3" | tail -1 | sed 's/^Plan kaydedildi: //')
+$BIN apply "$PLAN3" --yes --data-dir "$DATA3"
+test -f "$ROOT3/fatura-ocak.pdf"
+xattr -px com.apple.metadata:_kMDItemUserTags "$ROOT3/fatura-ocak.pdf" | xxd -r -p | plutil -p - | grep -q Fatura
+$BIN undo --data-dir "$DATA3"
+if xattr -px com.apple.metadata:_kMDItemUserTags "$ROOT3/fatura-ocak.pdf" 2>/dev/null | xxd -r -p | plutil -p - 2>/dev/null | grep -q Fatura; then
+  echo "tag still present after undo" >&2
+  exit 1
+fi
 echo "SMOKE OK"
