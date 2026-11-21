@@ -54,6 +54,19 @@ final class PlanSession {
             .sorted { $0.id < $1.id }
     }
 
+    /// Visible pending rows that "Tümünü seç" may approve: critical items are always excluded.
+    private var selectablePendingItems: [PlanItem] {
+        pendingItems.filter { $0.critical == false && $0.status != .critical && $0.target != nil }
+    }
+
+    var selectablePendingCount: Int {
+        selectablePendingItems.count
+    }
+
+    var pendingApproval: ApprovalState {
+        .of(selectablePendingItems)
+    }
+
     var approvedCount: Int {
         plan?.items.filter { $0.approved && $0.status != .skipped && $0.target != nil }.count ?? 0
     }
@@ -244,6 +257,12 @@ final class PlanSession {
                 _ = PlanEditor.bulkReject(&plan, categoryID: categoryID)
             }
         }
+    }
+
+    /// "Tümünü seç / kaldır" of the pending section, over the rows currently visible (search applies).
+    func setPendingApproved(_ approved: Bool) {
+        let ids = Set(selectablePendingItems.map(\.id))
+        edit { _ = PlanEditor.setApproval(&$0, itemIDs: ids, approved: approved) }
     }
 
     /// Re-reads the plan from disk first so changes made elsewhere (CLI apply) are respected, then saves.

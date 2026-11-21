@@ -173,6 +173,34 @@ struct ReviewAndEditorTests {
         #expect(PlanEditor.bulkReject(&plan, categoryID: nil) == 1)
     }
 
+    @Test func setApprovalNeverApprovesCritical() throws {
+        let root = try TestFS.tempDir()
+        var plan = Plan.stub(root: root, items: [
+            .stub("a.pdf", in: root, category: "documents", status: .review, reviewReason: .weakRuleNoLLM),
+            .stub("kimlik.pdf", in: root, category: "officialDocs", status: .critical, critical: true),
+            .stub("Album", in: root, category: "images", kind: .folder, status: .review, reviewReason: .folder),
+            .stub("x.tmp", in: root, status: .skipped)
+        ])
+        TargetAssigner.assign(&plan)
+        let ids = Set(plan.items.map(\.id))
+        #expect(PlanEditor.setApproval(&plan, itemIDs: ids, approved: true) == 2)
+        #expect(plan.item("a.pdf").approved && plan.item("Album").approved)
+        #expect(plan.item("kimlik.pdf").approved == false && plan.item("x.tmp").approved == false)
+    }
+
+    @Test func setApprovalRejectsIncludingCritical() throws {
+        let root = try TestFS.tempDir()
+        var plan = Plan.stub(root: root, items: [
+            .stub("a.pdf", in: root, category: "documents", approved: true),
+            .stub("kimlik.pdf", in: root, category: "officialDocs", status: .critical, critical: true, approved: true)
+        ])
+        #expect(PlanEditor.setApproval(&plan, itemIDs: Set(plan.items.map(\.id)), approved: false) == 2)
+        #expect(plan.items.allSatisfy { $0.approved == false })
+        var applied = plan
+        applied.state = .applied
+        #expect(PlanEditor.setApproval(&applied, itemIDs: [plan.item("a.pdf").id], approved: true) == 0)
+    }
+
     @Test func bulkRejectIgnoresAppliedPlans() throws {
         let root = try TestFS.tempDir()
         var plan = Plan.stub(root: root, items: [.stub("a.pdf", in: root, category: "documents", approved: true)], state: .applied)

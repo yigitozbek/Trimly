@@ -77,6 +77,29 @@ struct PlanSessionTests {
         #expect(try f.item("kimlik.pdf", in: session.plan).approved == false)
     }
 
+    @Test func selectAllPendingSkipsCritical() async throws {
+        let f = try AppFixture.standard()
+        let session = PlanSession(root: f.root, environment: f.environment())
+        await session.start()
+        #expect(session.pendingApproval == ApprovalState.none && session.selectablePendingCount == 2)
+        session.setPendingApproved(true)
+        #expect(try f.item("Album", in: session.plan).approved && f.item("download (3).pdf", in: session.plan).approved)
+        #expect(try f.item("kimlik.pdf", in: session.plan).approved == false)
+        #expect(session.pendingApproval == .all)
+        session.setPendingApproved(false)
+        #expect(session.pendingApproval == ApprovalState.none)
+    }
+
+    @Test func selectAllPendingRespectsSearch() async throws {
+        let f = try AppFixture.standard()
+        let session = PlanSession(root: f.root, environment: f.environment())
+        await session.start()
+        session.searchText = "down"
+        session.setPendingApproved(true)
+        #expect(try f.item("download (3).pdf", in: session.plan).approved)
+        #expect(try f.item("Album", in: session.plan).approved == false)
+    }
+
     @Test(.tags(.edgeCase)) func editAfterExternalApplyShowsError() async throws {
         let f = try AppFixture.standard()
         let session = PlanSession(root: f.root, environment: f.environment())

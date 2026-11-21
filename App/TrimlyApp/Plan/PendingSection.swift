@@ -4,7 +4,7 @@ struct PendingSection: View {
     let session: PlanSession
 
     var body: some View {
-        Section("Karar bekleyen (\(session.pendingItems.count))") {
+        Section {
             if session.pendingItems.isEmpty {
                 Text("Karar bekleyen öğe yok.")
                     .foregroundStyle(.secondary)
@@ -12,6 +12,8 @@ struct PendingSection: View {
             ForEach(session.pendingItems) { item in
                 ItemRow(item: item, session: session, isEditable: session.isReadOnly == false)
             }
+        } header: {
+            PendingSectionHeader(session: session)
         }
     }
 }

@@ -65,6 +65,27 @@ public enum PlanEditor {
         return changed
     }
 
+    /// Sets approval for the given items and returns how many changed (e.g. "select all" over visible rows).
+    /// Approving never includes critical, skipped or target-less items; un-approving is always allowed.
+    public static func setApproval(_ plan: inout Plan, itemIDs: Set<String>, approved: Bool) -> Int {
+        guard plan.state == .ready else {
+            return 0
+        }
+        var changed = 0
+        for index in plan.items.indices where itemIDs.contains(plan.items[index].id) {
+            let item = plan.items[index]
+            guard item.approved != approved, item.status != .skipped else {
+                continue
+            }
+            if approved, item.critical || item.status == .critical || item.target == nil {
+                continue
+            }
+            plan.items[index].approved = approved
+            changed += 1
+        }
+        return changed
+    }
+
     /// Un-approves matching items (all non-skipped items when `categoryID` is nil) and returns how many changed.
     /// Rejecting is always safe, so critical items are included.
     public static func bulkReject(_ plan: inout Plan, categoryID: String?) -> Int {
