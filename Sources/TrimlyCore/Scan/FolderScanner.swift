@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Lists the top level of a folder (never recursive) with the metadata later stages need.
+/// Lists a folder's items with the metadata later stages need: the top level (`scan`) or a depth-limited tree (`scanTree`).
 public struct FolderScanner: Sendable {
     private static let keys: Set<URLResourceKey> = [
         .isDirectoryKey, .isPackageKey, .isSymbolicLinkKey, .isAliasFileKey, .fileSizeKey,
@@ -12,16 +12,69 @@ public struct FolderScanner: Sendable {
     public init() {}
 
     public func scan(root: URL) throws -> [FileItem] {
+        try scanTree(root: root, maxDepth: 1) { _ in false }.items
+    }
+
+    /// Breadth-first: items with `depth < maxDepth`; descends only into folders `shouldDescend` accepts.
+    /// Stops adding items at `limit` (`truncated`). Descended folders get a histogram of all included descendant files.
+    public func scanTree(root: URL, maxDepth: Int, limit: Int = 5_000, shouldDescend: (FileItem) -> Bool) throws -> ScanTree {
         guard (try? root.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else {
             throw ScanError.notADirectory(root)
         }
-        // Item URLs are rebuilt from `root` so they share its form: the listing may report `/private/var/...`
-        // for a root given as `/var/...`, which would break later source/target path comparisons.
-        let names = try FileManager.default.contentsOfDirectory(atPath: root.path)
-        return try names.sorted().map { try item(at: root.appending(path: $0)) }
+        var items: [FileItem] = []
+        var truncated = false
+        var descended: [String] = []
+        var queue: [(url: URL, relative: String?, depth: Int)] = [(root, nil, 0)]
+        var next = 0
+        scanning: while next < queue.count {
+            let (folder, relative, depth) = queue[next]
+            next += 1
+            // Item URLs are rebuilt from `root` so they share its form: the listing may report `/private/var/...`
+            // for a root given as `/var/...`, which would break later source/target path comparisons.
+            let names: [String]
+            if relative == nil {
+                names = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
+            } else {
+                names = ((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []).sorted()
+            }
+            for name in names {
+                guard items.count < limit else {
+                    truncated = true
+                    break scanning
+                }
+                let path = relative.map { "\($0)/\(name)" } ?? name
+                let item = try item(at: folder.appending(path: name), relativePath: path, depth: depth, parent: relative)
+                items.append(item)
+                if item.kind == .folder, depth + 1 < maxDepth, shouldDescend(item) {
+                    queue.append((item.url, path, depth + 1))
+                    descended.append(path)
+                }
+            }
+        }
+        return ScanTree(items: withDescendantHistograms(items, descended: Set(descended)), truncated: truncated)
     }
 
-    private func item(at url: URL) throws -> FileItem {
+    private func withDescendantHistograms(_ items: [FileItem], descended: Set<String>) -> [FileItem] {
+        guard descended.isEmpty == false else { return items }
+        var counts: [String: [String: Int]] = [:]
+        for item in items where item.kind != .folder && item.name.hasPrefix(".") == false {
+            let ext = item.fileExtension
+            guard ext.isEmpty == false else { continue }
+            var ancestor = item.parentRelativePath
+            while let folder = ancestor {
+                if descended.contains(folder) {
+                    counts[folder, default: [:]][ext, default: 0] += 1
+                }
+                ancestor = folder.contains("/") ? String(folder[..<folder.lastIndex(of: "/")!]) : nil
+            }
+        }
+        return items.map { item in
+            guard descended.contains(item.relativePath) else { return item }
+            return item.withHistogram(counts[item.relativePath] ?? [:])
+        }
+    }
+
+    private func item(at url: URL, relativePath: String, depth: Int, parent: String?) throws -> FileItem {
         let values = try url.resourceValues(forKeys: Self.keys)
         let name = url.lastPathComponent
         let isLink = values.isSymbolicLink == true || values.isAliasFile == true
@@ -51,7 +104,10 @@ public struct FolderScanner: Sendable {
             spotlightContentCreationDate: spotlight.contentCreationDate,
             folderSampleNames: Array(children.prefix(Self.folderSampleLimit)),
             folderExtensionHistogram: histogram(of: children),
-            isLink: isLink
+            isLink: isLink,
+            relativePath: relativePath,
+            depth: depth,
+            parentRelativePath: parent
         )
     }
 

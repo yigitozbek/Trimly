@@ -59,4 +59,59 @@ struct FolderScannerTests {
             try FolderScanner().scan(root: file)
         }
     }
+
+    @Test func scanTreeDescendsToDepth() throws {
+        let root = try TestFS.tempDir()
+        let a = try TestFS.folder("A", in: root)
+        let b = try TestFS.folder("B", in: a)
+        try TestFS.file("c.txt", in: b)
+        try TestFS.file("x.pdf", in: a)
+        let deep = try FolderScanner().scanTree(root: root, maxDepth: 3) { _ in true }
+        let paths = Dictionary(uniqueKeysWithValues: deep.items.map { ($0.relativePath, $0.depth) })
+        #expect(paths == ["A": 0, "A/B": 1, "A/x.pdf": 1, "A/B/c.txt": 2])
+        #expect(deep.items.first { $0.relativePath == "A/B/c.txt" }?.parentRelativePath == "A/B")
+        #expect(deep.truncated == false)
+        let shallow = try FolderScanner().scanTree(root: root, maxDepth: 2) { _ in true }
+        #expect(shallow.items.map(\.relativePath).contains("A/B/c.txt") == false)
+    }
+
+    @Test func shouldDescendIsHonoured() throws {
+        let root = try TestFS.tempDir()
+        let project = try TestFS.folder("proj", in: root)
+        try TestFS.folder(".git", in: project)
+        try TestFS.file("a.txt", in: project)
+        let tree = try FolderScanner().scanTree(root: root, maxDepth: 3) { $0.name != "proj" }
+        #expect(tree.items.map(\.relativePath) == ["proj"])
+    }
+
+    @Test func histogramCountsDescendants() throws {
+        let root = try TestFS.tempDir()
+        let album = try TestFS.folder("Album", in: root)
+        try TestFS.file("a.jpg", in: album)
+        let sub = try TestFS.folder("alt", in: album)
+        try TestFS.file("b.jpg", in: sub)
+        try TestFS.file("c.jpg", in: sub)
+        try TestFS.file(".DS_Store", in: sub)
+        let tree = try FolderScanner().scanTree(root: root, maxDepth: 3) { _ in true }
+        #expect(tree.items.first { $0.relativePath == "Album" }?.folderExtensionHistogram == ["jpg": 3])
+    }
+
+    @Test(.tags(.edgeCase)) func stopsDescendingAtLimit() throws {
+        let root = try TestFS.tempDir()
+        for index in 0..<4 {
+            let folder = try TestFS.folder("F\(index)", in: root)
+            for file in 0..<2 { try TestFS.file("f\(file).txt", in: folder) }
+        }
+        let tree = try FolderScanner().scanTree(root: root, maxDepth: 3, limit: 5) { _ in true }
+        #expect(tree.items.count == 5 && tree.truncated)
+    }
+
+    @Test func topLevelScanUnchanged() throws {
+        let root = try TestFS.tempDir()
+        try TestFS.file("a.pdf", in: root)
+        let sub = try TestFS.folder("sub", in: root)
+        try TestFS.file("inner.txt", in: sub)
+        let tree = try FolderScanner().scanTree(root: root, maxDepth: 1) { _ in true }
+        #expect(try FolderScanner().scan(root: root).map(\.name) == tree.items.map(\.name))
+    }
 }
