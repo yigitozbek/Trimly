@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import TrimlyCore
 
 struct ResultSheet: View {
     let session: PlanSession
@@ -8,7 +9,7 @@ struct ResultSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let run = session.lastRun {
-                Text("Taşınan \(run.moved) · atlanan \(run.skipped.count) · hatalı \(run.failed.count)")
+                Text(runSummary(run))
                     .font(.title3.bold())
                 if run.skipped.isEmpty == false || run.failed.isEmpty == false {
                     GroupBox("Ayrıntılar") {
@@ -23,7 +24,7 @@ struct ResultSheet: View {
                 }
             }
             if let undo = session.lastUndo {
-                Label("Geri alındı: \(undo.restored) öğe, \(undo.removedFolders) klasör kaldırıldı, \(undo.skipped.count) atlandı", systemImage: "arrow.uturn.backward.circle")
+                Label(undoSummary(undo), systemImage: "arrow.uturn.backward.circle")
             }
             HStack {
                 Button("Geri Al", systemImage: "arrow.uturn.backward", action: undo)
@@ -36,6 +37,26 @@ struct ResultSheet: View {
         }
         .padding(20)
         .frame(width: 480)
+    }
+
+    private func runSummary(_ run: RunSummary) -> String {
+        var parts = ["Taşınan \(run.moved)"]
+        if run.tagged > 0 {
+            parts.append("etiketlenen \(run.tagged)")
+        }
+        parts.append("atlanan \(run.skipped.count)")
+        parts.append("hatalı \(run.failed.count)")
+        return parts.joined(separator: " · ")
+    }
+
+    private func undoSummary(_ undo: UndoSummary) -> String {
+        var parts = ["Geri alındı: \(undo.restored) öğe"]
+        if undo.restoredTags > 0 {
+            parts.append("\(undo.restoredTags) etiket geri alındı")
+        }
+        parts.append("\(undo.removedFolders) klasör kaldırıldı")
+        parts.append("\(undo.skipped.count) atlandı")
+        return parts.joined(separator: ", ")
     }
 
     private func undo() {

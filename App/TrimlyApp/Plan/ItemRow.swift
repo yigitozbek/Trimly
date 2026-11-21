@@ -30,13 +30,18 @@ struct ItemRow: View {
             ItemStatusIcon(item: item)
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.depth > 0 ? item.relativePath : item.name)
-                Text("→ \(targetText)")
+                Text(targetText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                 Text(ItemFormatting.detail(item))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                if item.existingTags.isEmpty == false {
+                    Text("Etiketler: " + item.existingTags.joined(separator: ", "))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
                 if item.folderMode == .keep {
                     coverageText
                 }
@@ -90,7 +95,17 @@ struct ItemRow: View {
     }
 
     private var targetText: String {
-        item.target.map { PathFormatting.relative($0, to: session.root) } ?? "—"
+        let tag = item.tagsToAdd.first.map { "＋ \($0) etiketi" }
+        if let path = item.target.map({ PathFormatting.relative($0, to: session.root) }) {
+            if let tag {
+                return "→ \(path) · \(tag)"
+            }
+            return "→ \(path)"
+        }
+        if let tag {
+            return tag
+        }
+        return "→ —"
     }
 
     private var categories: [(id: String, title: String)] {

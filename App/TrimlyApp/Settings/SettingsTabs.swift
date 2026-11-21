@@ -10,6 +10,8 @@ struct SettingsTabs: View {
                 .tabItem { Label("Adlandırma", systemImage: "textformat") }
             TargetTab(model: model)
                 .tabItem { Label("Hedef", systemImage: "folder") }
+            TagsTab(model: model)
+                .tabItem { Label("Etiketler", systemImage: "tag") }
             ModelTab(model: model)
                 .tabItem { Label("Model", systemImage: "cpu") }
             IgnoreTab(model: model)

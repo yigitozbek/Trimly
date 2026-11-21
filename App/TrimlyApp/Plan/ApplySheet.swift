@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Final confirmation before anything moves. Critical items approved by hand are listed separately.
+/// Final confirmation before anything moves (or tags are added). Critical items approved by hand are listed separately.
 struct ApplySheet: View {
     let summary: ApplySummary
     let onApply: () -> Void
@@ -8,11 +8,9 @@ struct ApplySheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("\(summary.count) öğe taşınacak")
+            Text(title)
                 .font(.title2.bold())
-            Text(summary.removesEmptyFolders
-                 ? "Her taşıma kaydedilir ve Geri Al ile geri alınabilir. Hiçbir dosya üzerine yazılmaz. Boşalan klasörler kaldırılır; Geri Al onları yeniden oluşturur."
-                 : "Her taşıma kaydedilir ve Geri Al ile geri alınabilir. Hiçbir dosya silinmez veya üzerine yazılmaz.")
+            Text(explanation)
                 .foregroundStyle(.secondary)
             GroupBox("Kategoriler") {
                 VStack(alignment: .leading, spacing: 4) {
@@ -41,6 +39,25 @@ struct ApplySheet: View {
         }
         .padding(20)
         .frame(width: 460)
+    }
+
+    private var title: String {
+        summary.isTagOnly
+            ? "\(summary.count) öğeye etiket eklenecek"
+            : "\(summary.count) öğe taşınacak"
+    }
+
+    private var explanation: String {
+        if summary.isTagOnly {
+            return "Hiçbir dosya taşınmaz; Geri Al eklenen etiketleri kaldırır."
+        }
+        var text = summary.removesEmptyFolders
+            ? "Her taşıma kaydedilir ve Geri Al ile geri alınabilir. Hiçbir dosya üzerine yazılmaz. Boşalan klasörler kaldırılır; Geri Al onları yeniden oluşturur."
+            : "Her taşıma kaydedilir ve Geri Al ile geri alınabilir. Hiçbir dosya silinmez veya üzerine yazılmaz."
+        if summary.addsCategoryTags {
+            text += " Taşınan dosyalara kategori etiketi eklenir."
+        }
+        return text
     }
 
     private func cancel() {

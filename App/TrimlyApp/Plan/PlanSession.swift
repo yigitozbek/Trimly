@@ -107,7 +107,7 @@ final class PlanSession {
     private var selectablePendingItems: [PlanItem] {
         let carryingCritical = plan?.foldersCarryingCritical() ?? []
         return pendingItems.filter {
-            $0.critical == false && $0.status != .critical && $0.target != nil && carryingCritical.contains($0.id) == false
+            $0.critical == false && $0.status != .critical && $0.hasAction && carryingCritical.contains($0.id) == false
         }
     }
 
@@ -164,7 +164,9 @@ final class PlanSession {
             byCategory: byCategory,
             criticalApproved: approved.filter(\.critical),
             itemIDs: Set(approved.map(\.id)),
-            removesEmptyFolders: snapshot.removeEmptyFolders
+            removesEmptyFolders: snapshot.removeEmptyFolders,
+            isTagOnly: snapshot.targetMode == .tagOnly,
+            addsCategoryTags: snapshot.targetMode != .tagOnly && snapshot.addCategoryTags
         )
     }
 
@@ -404,7 +406,7 @@ final class PlanSession {
     }
 
     private func approvedItems(in plan: Plan?) -> [PlanItem] {
-        plan?.items.filter { $0.approved && $0.status != .skipped && $0.target != nil } ?? []
+        plan?.items.filter { $0.approved && $0.status != .skipped && $0.hasAction } ?? []
     }
 
     private func isPending(_ item: PlanItem) -> Bool {

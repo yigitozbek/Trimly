@@ -10,6 +10,7 @@ struct TargetTab: View {
             Picker("Düzenlenen dosyalar", selection: $model.settings.targetMode) {
                 Text("Klasörün içinde kategori klasörlerine").tag(TargetMode.inPlace)
                 Text("Merkezi arşive").tag(TargetMode.central)
+                Text("Taşıma; yalnızca kategori etiketi ekle").tag(TargetMode.tagOnly)
             }
             .pickerStyle(.radioGroup)
             if model.settings.targetMode == .central {
@@ -21,6 +22,9 @@ struct TargetTab: View {
                         Button("Seç…", action: pickArchive)
                     }
                 }
+            }
+            if model.settings.targetMode != .tagOnly {
+                Toggle("Taşınan dosyalara kategori etiketi ekle", isOn: $model.settings.addCategoryTags)
             }
             Toggle("Yıl alt klasörü kullan (ör. Faturalar/2025)", isOn: $model.settings.yearSubfolders)
             Stepper("Tarama derinliği: \(model.settings.scanDepth) seviye", value: $model.settings.scanDepth, in: 1...5)

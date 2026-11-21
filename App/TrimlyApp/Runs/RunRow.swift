@@ -9,7 +9,7 @@ struct RunRow: View {
         HStack {
             VStack(alignment: .leading) {
                 Text(PathFormatting.displayName(URL(filePath: run.root)))
-                Text("\(run.at.formatted(date: .abbreviated, time: .shortened)) · taşınan \(run.moved)")
+                Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -20,9 +20,17 @@ struct RunRow: View {
                     .foregroundStyle(.secondary)
             } else {
                 Button("Geri Al", systemImage: "arrow.uturn.backward", action: undo)
-                    .disabled(run.moved == 0)
+                    .disabled(run.moved == 0 && run.tagged == 0)
             }
         }
+    }
+
+    private var subtitle: String {
+        var parts = ["\(run.at.formatted(date: .abbreviated, time: .shortened))", "taşınan \(run.moved)"]
+        if run.tagged > 0 {
+            parts.append("etiketlenen \(run.tagged)")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func undo() {
