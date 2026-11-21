@@ -28,6 +28,29 @@ public struct Undoer: Sendable {
         var removedFolders = 0
         var skipped: [SkippedEntry] = []
 
+        // The journal is replayed in reverse: folders the run removed (always journaled after every move) come back
+        // first, outermost first, then the moves, then the folders the run created.
+        let removedByRun = journal.entries.filter { $0.op == .rmdir && journal.effectiveState(of: $0.seq) == .done }
+        for folder in removedByRun.reversed() where RunLog.isUndone(folder.seq, in: journal) == false {
+            guard let path = folder.path else { continue }
+            var isDirectory: ObjCBool = false
+            if fm.fileExists(atPath: path, isDirectory: &isDirectory) == false {
+                do {
+                    try fm.createDirectory(atPath: path, withIntermediateDirectories: false)
+                } catch {
+                    let reason = "Klasör yeniden oluşturulamadı: \(error.localizedDescription)"
+                    try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .failed, message: reason))
+                    skipped.append(SkippedEntry(path: path, reason: reason))
+                    continue
+                }
+            } else if isDirectory.boolValue == false {
+                try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .skipped, message: "Klasörün yerinde dosya var"))
+                skipped.append(SkippedEntry(path: path, reason: "Klasörün yerinde dosya var"))
+                continue
+            }
+            try journal.append(JournalEntry(seq: -1, op: .undo, ref: folder.seq, state: .done))
+        }
+
         for move in RunLog.doneMoves(in: journal).reversed() where RunLog.isUndone(move.seq, in: journal) == false {
             guard let from = move.from, let to = move.to else { continue }
             let reason: String?
