@@ -81,7 +81,7 @@ final class PlanSession {
     }
 
     var stage2CandidateCount: Int {
-        plan?.items.filter { ($0.status == .review || $0.status == .critical) && $0.approved == false }.count ?? 0
+        plan?.items.filter { ($0.status == .review || $0.status == .critical) && $0.approved == false && $0.covered == false }.count ?? 0
     }
 
     var isReadOnly: Bool {
@@ -353,8 +353,9 @@ final class PlanSession {
 
     private func matching(_ predicate: (PlanItem) -> Bool) -> [PlanItem] {
         guard let plan else { return [] }
+        // Covered items travel with their kept folder; they never get a row of their own.
         return plan.items
-            .filter { predicate($0) && (searchText.isEmpty || $0.name.localizedStandardContains(searchText)) }
+            .filter { $0.covered == false && predicate($0) && (searchText.isEmpty || $0.name.localizedStandardContains(searchText)) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
