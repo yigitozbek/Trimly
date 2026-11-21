@@ -141,7 +141,9 @@ struct NestedPlannerTests {
 
     /// Review I2: a partial download just below the scan horizon still pins the folders above it.
     @Test(.tags(.edgeCase)) func partialDownloadBelowScanHorizonPinsAncestors() async throws {
-        let f = try PlannerFixture(standardFiles: false)
+        var f = try PlannerFixture(standardFiles: false)
+        // Horizon at depth 3 (default is now 5, which would fully list Z and skip the file instead).
+        f.settings.scanDepth = 3
         try tree(f, (1...5).map { "X/Y/Z/\($0).jpg" } + ["X/Y/Z/big.crdownload"])
         let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         #expect(plan.item(path: "X/Y/Z").skipReason == "İçinde yarım indirme")
