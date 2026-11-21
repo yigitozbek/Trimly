@@ -19,6 +19,7 @@ Arayüz (otomatik test / derleme; tıklama yok):
 
 Doğrulamada bulunup düzeltilen:
 - Başarılı trash undo sonrası `trashedRunID` temizlenmiyordu → tekrar çöp / UI adayı kırılıyordu (`fix(core): clear trashedRunID after successful trash undo`).
+- Toplu onay (`bulkApprove` / `setApproval`) çöp adaylarını da seçiyordu → `apply` ile taşınabiliyordu; adaylar artık toplu onay dışında (tek tek organize onayı duruyor).
 
 ## Gerçek veri (LLM kapalı, salt okunur)
 
