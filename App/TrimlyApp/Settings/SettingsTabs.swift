@@ -12,6 +12,8 @@ struct SettingsTabs: View {
                 .tabItem { Label("Hedef", systemImage: "folder") }
             TagsTab(model: model)
                 .tabItem { Label("Etiketler", systemImage: "tag") }
+            TrashTab(model: model)
+                .tabItem { Label("Çöp", systemImage: "trash") }
             ModelTab(model: model)
                 .tabItem { Label("Model", systemImage: "cpu") }
             IgnoreTab(model: model)

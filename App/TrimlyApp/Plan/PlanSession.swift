@@ -84,7 +84,10 @@ final class PlanSession {
     var readyGroups: [CategoryGroup] {
         guard let plan else { return [] }
         let snapshot = plan.settingsSnapshot
-        let ready = matching { $0.status == .ready && pendingIDs.contains($0.id) == false }
+        // Trash candidates have their own section; keep them out of "Hazır".
+        let ready = matching {
+            $0.status == .ready && pendingIDs.contains($0.id) == false && $0.trashReason == nil
+        }
         return Dictionary(grouping: ready, by: { $0.categoryID ?? "other" })
             .map { id, items in
                 CategoryGroup(
@@ -101,6 +104,16 @@ final class PlanSession {
         Dictionary(grouping: matching { $0.status == .skipped }, by: { $0.skipReason ?? "?" })
             .map { SkipGroup(id: $0.key, items: $0.value) }
             .sorted { $0.id < $1.id }
+    }
+
+    /// Files marked as trash candidates that have not been sent to the Trash yet.
+    var trashCandidates: [PlanItem] {
+        matching { $0.trashReason != nil && $0.trashedRunID == nil }
+    }
+
+    /// Candidates plus items already in the Trash for this plan (for per-row undo).
+    var trashSectionItems: [PlanItem] {
+        matching { $0.trashReason != nil }
     }
 
     /// Visible pending rows that "Tümünü seç" may approve: critical items, and kept folders carrying one, are excluded.
@@ -329,6 +342,35 @@ final class PlanSession {
             errorMessage = nil
         } catch {
             errorMessage = UserMessage.text(for: error)
+        }
+    }
+
+    /// Sends one trash candidate to the system Trash (journaled single-item run). No bulk API.
+    func trash(_ item: PlanItem) async {
+        guard let current = plan, isBusy == false, isReadOnly == false else { return }
+        lastRun = nil
+        lastUndo = nil
+        do {
+            let run = try await Executor(directory: environment.directory, now: environment.now)
+                .trash(planID: current.id, itemID: item.id)
+            lastRun = run
+            reload()
+            errorMessage = nil
+        } catch {
+            errorMessage = UserMessage.text(for: error)
+            reload()
+        }
+    }
+
+    /// Restores a file previously sent with `trash(_:)` (or skips with a clear reason if Trash was emptied).
+    func undoTrash(runID: String) async {
+        do {
+            lastUndo = try await Undoer(directory: environment.directory).undo(runID: runID)
+            reload()
+            errorMessage = nil
+        } catch {
+            errorMessage = UserMessage.text(for: error)
+            reload()
         }
     }
 

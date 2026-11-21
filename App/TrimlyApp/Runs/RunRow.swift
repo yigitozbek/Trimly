@@ -20,15 +20,23 @@ struct RunRow: View {
                     .foregroundStyle(.secondary)
             } else {
                 Button("Geri Al", systemImage: "arrow.uturn.backward", action: undo)
-                    .disabled(run.moved == 0 && run.tagged == 0)
+                    .disabled(run.moved == 0 && run.tagged == 0 && run.trashed == 0)
             }
         }
     }
 
     private var subtitle: String {
-        var parts = ["\(run.at.formatted(date: .abbreviated, time: .shortened))", "taşınan \(run.moved)"]
-        if run.tagged > 0 {
-            parts.append("etiketlenen \(run.tagged)")
+        var parts: [String] = [run.at.formatted(date: .abbreviated, time: .shortened)]
+        if let title = run.title, title.isEmpty == false {
+            parts.append(title)
+        } else {
+            parts.append("taşınan \(run.moved)")
+            if run.tagged > 0 {
+                parts.append("etiketlenen \(run.tagged)")
+            }
+            if run.trashed > 0 {
+                parts.append("çöp \(run.trashed)")
+            }
         }
         return parts.joined(separator: " · ")
     }

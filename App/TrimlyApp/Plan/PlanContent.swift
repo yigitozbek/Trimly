@@ -23,6 +23,7 @@ struct PlanContent: View {
             }
             PendingSection(session: session)
             ReadySection(session: session)
+            TrashSection(session: session)
             SkippedSection(session: session)
         }
         .safeAreaInset(edge: .top) {
