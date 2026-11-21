@@ -80,7 +80,15 @@ public struct Executor: Sendable {
             }
 
             if needsTag {
-                let previous = FinderTags.read(finalURL)
+                let previous: [String]
+                do {
+                    previous = try FinderTags.read(finalURL)
+                } catch {
+                    failed.append(SkippedEntry(
+                        path: finalURL.path, reason: "Etiketler okunamadı: \(error.localizedDescription)"
+                    ))
+                    continue
+                }
                 let missing = item.tagsToAdd.filter { FinderTags.contains($0, in: previous) == false }
                 guard missing.isEmpty == false else { continue }
                 let tags = previous + missing
@@ -92,6 +100,8 @@ public struct Executor: Sendable {
                     try journal.append(JournalEntry(seq: -1, ref: seq, state: .done))
                     tagged += 1
                 } catch {
+                    // Write either replaced the list or threw; put the journaled previous set back either way.
+                    try? FinderTags.write(previous, to: finalURL)
                     try journal.append(JournalEntry(
                         seq: -1, ref: seq, state: .failed, message: "Etiket eklenemedi: \(error.localizedDescription)"
                     ))

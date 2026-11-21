@@ -27,19 +27,19 @@ struct TagExecutionTests {
         let (item, summary) = try await apply(f, tags: ["Proje X"])
         let target = try #require(item.target)
         #expect(summary.moved == 1 && summary.tagged == 1)
-        #expect(FinderTags.read(target) == ["Proje X", "Fatura"])
+        #expect(try FinderTags.read(target) == ["Proje X", "Fatura"])
         let undo = try await Undoer(directory: f.data).undo(runID: nil)
         #expect(undo.restored == 1 && undo.restoredTags == 1)
-        #expect(FinderTags.read(item.source) == ["Proje X"])
+        #expect(try FinderTags.read(item.source) == ["Proje X"])
     }
 
     @Test func tagOnlyTagsInPlaceAndUndoes() async throws {
         let f = try fixture(tagOnly: true)
         let (item, summary) = try await apply(f)
         #expect(summary.moved == 0 && summary.tagged == 1)
-        #expect(FinderTags.read(item.source) == ["Fatura"])
+        #expect(try FinderTags.read(item.source) == ["Fatura"])
         _ = try await Undoer(directory: f.data).undo(runID: nil)
-        #expect(FinderTags.read(item.source).isEmpty)
+        #expect(try FinderTags.read(item.source).isEmpty)
     }
 
     @Test(.tags(.edgeCase)) func undoKeepsTagsTheUserChangedSince() async throws {
@@ -48,7 +48,7 @@ struct TagExecutionTests {
         try TestFS.setTags(["Benim"], on: try #require(item.target))
         let undo = try await Undoer(directory: f.data).undo(runID: nil)
         #expect(undo.restored == 1 && FileManager.default.fileExists(atPath: item.source.path))
-        #expect(FinderTags.read(item.source) == ["Benim"])
+        #expect(try FinderTags.read(item.source) == ["Benim"])
         #expect(undo.skipped.contains { $0.reason == "Etiketler sonradan değişmiş" })
     }
 
@@ -79,5 +79,49 @@ struct TagExecutionTests {
         let recovered = try Journal.open(at: url)
         #expect(recovered.effectiveState(of: done) == .done && recovered.effectiveState(of: failed) == .failed)
         #expect(recovered.effectiveState(of: undone) == .done)
+    }
+
+    /// `resourceValues` can return nil under EACCES; treating that as `[]` would journal empty `previousTags`
+    /// and replace real tags if a later write succeeded.
+    @Test(.tags(.edgeCase)) func readThrowsWhenTagsUnreadable() throws {
+        let file = try TestFS.file("a.pdf", in: try TestFS.tempDir())
+        try TestFS.setTags(["Keep"], on: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: file.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path) }
+        #expect(throws: (any Error).self) {
+            try FinderTags.read(file)
+        }
+    }
+
+    @Test(.tags(.edgeCase)) func unreadableTagsAreNotReplacedOnApply() async throws {
+        let f = try fixture(tagOnly: true)
+        let file = try TestFS.file("fatura-ocak.pdf", in: f.root)
+        try TestFS.setTags(["Keep"], on: file)
+        let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        #expect(plan.item("fatura-ocak.pdf").tagsToAdd == ["Fatura"])
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: file.path)
+        let summary = try await Executor(directory: f.data).apply(planID: plan.id)
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+        #expect(summary.tagged == 0)
+        #expect(summary.failed.contains { $0.path == file.path && $0.reason.contains("Etiket") })
+        #expect(try FinderTags.read(file) == ["Keep"])
+    }
+
+    @Test(.tags(.edgeCase)) func failedTagWriteRestoresPreviousTags() async throws {
+        let f = try fixture(tagOnly: true)
+        let file = try TestFS.file("fatura-ocak.pdf", in: f.root)
+        try TestFS.setTags(["Keep"], on: file)
+        let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
+        var st = stat()
+        #expect(lstat(file.path, &st) == 0)
+        st.st_flags |= UInt32(UF_IMMUTABLE)
+        #expect(chflags(file.path, st.st_flags) == 0)
+        defer {
+            st.st_flags &= ~UInt32(UF_IMMUTABLE)
+            _ = chflags(file.path, st.st_flags)
+        }
+        let summary = try await Executor(directory: f.data).apply(planID: plan.id)
+        #expect(summary.tagged == 0 && summary.failed.isEmpty == false)
+        #expect(try FinderTags.read(file) == ["Keep"])
     }
 }

@@ -64,7 +64,16 @@ public struct Undoer: Sendable {
                     skipped.append(SkippedEntry(path: path, reason: "Dosya bulunamadı"))
                     continue
                 }
-                let current = FinderTags.read(fileURL)
+                let current: [String]
+                do {
+                    current = try FinderTags.read(fileURL)
+                } catch {
+                    try journal.append(JournalEntry(
+                        seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: "Etiketler okunamadı"
+                    ))
+                    skipped.append(SkippedEntry(path: path, reason: "Etiketler okunamadı"))
+                    continue
+                }
                 guard FinderTags.sameSet(current, written) else {
                     try journal.append(JournalEntry(
                         seq: -1, op: .undo, ref: entry.seq, state: .skipped, message: "Etiketler sonradan değişmiş"

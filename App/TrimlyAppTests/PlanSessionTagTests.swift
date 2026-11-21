@@ -32,10 +32,10 @@ struct PlanSessionTagTests {
         await session.apply(confirming: session.applySummary)
         #expect(session.lastRun?.moved == 0 && session.lastRun?.tagged == 1)
         #expect(FileManager.default.fileExists(atPath: file.path))
-        #expect(FinderTags.read(file) == ["Fatura"])
+        #expect(try FinderTags.read(file) == ["Fatura"])
         await session.undoLastApply()
         #expect(session.lastUndo?.restoredTags == 1)
-        #expect(FinderTags.read(file).isEmpty)
+        #expect(try FinderTags.read(file).isEmpty)
     }
 
     @Test func selectAllUsesTagActions() async throws {

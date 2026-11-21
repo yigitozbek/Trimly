@@ -23,7 +23,7 @@ public enum Recovery {
                     completed = fm.fileExists(atPath: from) && fm.fileExists(atPath: to) == false
                 case .tag:
                     guard let path = original.path, let previous = original.previousTags else { continue }
-                    completed = FinderTags.sameSet(FinderTags.read(URL(filePath: path)), previous)
+                    completed = (try? FinderTags.read(URL(filePath: path))).map { FinderTags.sameSet($0, previous) } ?? false
                 default:
                     continue
                 }
@@ -35,7 +35,7 @@ public enum Recovery {
                 completed = fm.fileExists(atPath: path) == false
             case .tag:
                 guard let path = entry.path, let tags = entry.tags else { continue }
-                completed = FinderTags.sameSet(FinderTags.read(URL(filePath: path)), tags)
+                completed = (try? FinderTags.read(URL(filePath: path))).map { FinderTags.sameSet($0, tags) } ?? false
             case nil:
                 continue
             }
