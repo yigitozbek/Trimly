@@ -19,9 +19,9 @@ struct StartView: View {
             }
 
             HStack(spacing: 12) {
-                shortcut("Masaüstü", systemImage: "menubar.dock.rectangle") { open(.desktopDirectory) }
-                shortcut("İndirilenler", systemImage: "arrow.down.circle") { open(.downloadsDirectory) }
-                shortcut("Klasör seç…", systemImage: "folder.badge.plus") { isPickingFolder = true }
+                ShortcutButton(title: "Masaüstü", systemImage: "menubar.dock.rectangle", action: openDesktop)
+                ShortcutButton(title: "İndirilenler", systemImage: "arrow.down.circle", action: openDownloads)
+                ShortcutButton(title: "Klasör seç…", systemImage: "folder.badge.plus", action: pickFolder)
             }
 
             GroupBox("Son işlemler") {
@@ -35,9 +35,7 @@ struct StartView: View {
             HStack {
                 StatusBadge(status: status)
                 Spacer()
-                Button("Geçmiş", systemImage: "clock.arrow.circlepath") {
-                    openWindow(id: "history")
-                }
+                Button("Geçmiş", systemImage: "clock.arrow.circlepath", action: openHistory)
                 SettingsLink {
                     Label("Ayarlar…", systemImage: "gearshape")
                 }
@@ -45,28 +43,40 @@ struct StartView: View {
         }
         .padding(24)
         .frame(minWidth: 520, minHeight: 420)
-        .fileImporter(isPresented: $isPickingFolder, allowedContentTypes: [.folder]) { result in
-            if case .success(let folder) = result {
-                open(folder)
-            }
-        }
-        .task {
-            if runs == nil {
-                runs = RunsModel(environment: environment, limit: 5)
-            }
-            runs?.refresh()
-            let settings = environment.loadSettings()
-            let health = await environment.makeProvider(settings).health()
-            status = .from(health, model: settings.stage1Model)
-        }
+        .fileImporter(isPresented: $isPickingFolder, allowedContentTypes: [.folder], onCompletion: folderPicked)
+        .task(load)
     }
 
-    private func shortcut(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .frame(maxWidth: .infinity, minHeight: 44)
+    private func load() async {
+        if runs == nil {
+            runs = RunsModel(environment: environment, limit: 5)
         }
-        .controlSize(.large)
+        runs?.refresh()
+        let settings = environment.loadSettings()
+        let health = await environment.makeProvider(settings).health()
+        status = .from(health, model: settings.stage1Model)
+    }
+
+    private func openDesktop() {
+        open(.desktopDirectory)
+    }
+
+    private func openDownloads() {
+        open(.downloadsDirectory)
+    }
+
+    private func pickFolder() {
+        isPickingFolder = true
+    }
+
+    private func openHistory() {
+        openWindow(id: "history")
+    }
+
+    private func folderPicked(_ result: Result<URL, any Error>) {
+        if case .success(let folder) = result {
+            open(folder)
+        }
     }
 
     private func open(_ folder: URL) {

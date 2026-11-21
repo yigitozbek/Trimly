@@ -11,7 +11,7 @@ struct RunsList: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(model.runs) { run in
-                    row(run)
+                    RunRow(run: run, model: model)
                 }
             }
             if let undo = model.lastUndo {
@@ -23,28 +23,6 @@ struct RunsList: View {
                 Text(message)
                     .font(.callout)
                     .foregroundStyle(.red)
-            }
-        }
-    }
-
-    private func row(_ run: RunInfo) -> some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(PathFormatting.displayName(URL(filePath: run.root)))
-                Text("\(run.at.formatted(date: .abbreviated, time: .shortened)) · taşınan \(run.moved)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if run.undone {
-                Text("Geri alındı")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Button("Geri Al", systemImage: "arrow.uturn.backward") {
-                    Task { await model.undo(runID: run.runID) }
-                }
-                .disabled(run.moved == 0)
             }
         }
     }

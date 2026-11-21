@@ -66,6 +66,13 @@ final class PlanSession {
         plan?.state == .applied
     }
 
+    var isBusy: Bool {
+        switch phase {
+        case .scanning, .reviewing, .applying: true
+        case .idle, .applied, .failed: false
+        }
+    }
+
     /// Stage 2 needs Ollama with the stage-2 model (as of the last health check) and something to look at.
     var stage2Available: Bool {
         guard let lastHealth, isReadOnly == false, stage2CandidateCount > 0 else { return false }
@@ -252,6 +259,10 @@ final class PlanSession {
             errorMessage = UserMessage.text(for: error)
             plan = updated
         }
+    }
+
+    func clearError() {
+        errorMessage = nil
     }
 
     // MARK: Helpers

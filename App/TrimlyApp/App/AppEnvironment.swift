@@ -7,8 +7,9 @@ struct AppEnvironment: Sendable {
     let makeProvider: @Sendable (Settings) -> any LLMProvider
     let now: @Sendable () -> Date
 
+    /// `TRIMLY_DATA_DIR` overrides the data directory (manual testing without touching the real one).
     static let live = AppEnvironment(
-        directory: .default,
+        directory: ProcessInfo.processInfo.environment["TRIMLY_DATA_DIR"].map { DataDirectory(root: URL(filePath: $0, directoryHint: .isDirectory)) } ?? .default,
         makeProvider: { settings in
             OllamaProvider(
                 baseURL: URL(string: settings.providerURL) ?? URL(string: "http://localhost:11434")!,

@@ -4,7 +4,7 @@ import TrimlyCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let directory = DataDirectory.default
+        let directory = AppEnvironment.live.directory
         try? directory.ensureExists()
         _ = try? Recovery.recoverAll(in: directory)
     }
