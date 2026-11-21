@@ -5,4 +5,5 @@ public enum ReviewReason: String, Codable, Sendable, CaseIterable {
     case llmError
     case weakRuleNoLLM
     case folder
+    case mixedFolder
 }

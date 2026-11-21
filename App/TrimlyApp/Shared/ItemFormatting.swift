@@ -37,6 +37,7 @@ enum ItemFormatting {
         case .llmError: "LLM hatası"
         case .weakRuleNoLLM: "LLM'siz zayıf kural"
         case .folder: "klasör, elle onay gerekir"
+        case .mixedFolder: "karışık klasör: dağıt / bütün tut seçin"
         }
     }
 

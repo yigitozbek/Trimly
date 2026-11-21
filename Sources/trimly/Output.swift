@@ -84,6 +84,7 @@ enum Output {
         case .llmError: "LLM hatası"
         case .weakRuleNoLLM: "LLM'siz zayıf kural"
         case .folder: "klasör"
+        case .mixedFolder: "karışık klasör: dağıt / bütün tut seçin"
         }
     }
 

@@ -17,6 +17,11 @@ public struct FileItem: Codable, Equatable, Sendable {
     public let folderSampleNames: [String]
     public let folderExtensionHistogram: [String: Int]
     public let isLink: Bool
+    /// Path relative to the scanned root (`Rastgele/alt/fatura.pdf`); equals `name` at the top level.
+    public let relativePath: String
+    /// 0 for the root's direct children.
+    public let depth: Int
+    public let parentRelativePath: String?
 
     public init(
         url: URL,
@@ -34,7 +39,10 @@ public struct FileItem: Codable, Equatable, Sendable {
         spotlightContentCreationDate: Date? = nil,
         folderSampleNames: [String] = [],
         folderExtensionHistogram: [String: Int] = [:],
-        isLink: Bool = false
+        isLink: Bool = false,
+        relativePath: String? = nil,
+        depth: Int = 0,
+        parentRelativePath: String? = nil
     ) {
         self.url = url
         self.name = name
@@ -52,5 +60,8 @@ public struct FileItem: Codable, Equatable, Sendable {
         self.folderSampleNames = folderSampleNames
         self.folderExtensionHistogram = folderExtensionHistogram
         self.isLink = isLink
+        self.relativePath = relativePath ?? name
+        self.depth = depth
+        self.parentRelativePath = parentRelativePath
     }
 }

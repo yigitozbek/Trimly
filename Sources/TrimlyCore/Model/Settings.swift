@@ -21,6 +21,14 @@ public struct Settings: Codable, Equatable, Sendable {
     public var timeoutSeconds = 60.0
     public var keepAlive = "2m"
 
+    // Nested scanning
+    /// Levels below the root: 1 = top level only.
+    public var scanDepth = 3
+    /// A folder whose files are at least this share of one category is kept together.
+    public var distributeThreshold = 0.8
+    /// After a run, remove folders it emptied (only empty ones; journaled and recreated on undo).
+    public var removeEmptyFolders = false
+
     // Ignore
     public var ignoreHidden = true
     public var ignoreApps = true
@@ -64,6 +72,9 @@ public struct Settings: Codable, Equatable, Sendable {
         contentPreview = try c.decodeIfPresent(Bool.self, forKey: .contentPreview) ?? d.contentPreview
         timeoutSeconds = try c.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? d.timeoutSeconds
         keepAlive = try c.decodeIfPresent(String.self, forKey: .keepAlive) ?? d.keepAlive
+        scanDepth = try c.decodeIfPresent(Int.self, forKey: .scanDepth) ?? d.scanDepth
+        distributeThreshold = try c.decodeIfPresent(Double.self, forKey: .distributeThreshold) ?? d.distributeThreshold
+        removeEmptyFolders = try c.decodeIfPresent(Bool.self, forKey: .removeEmptyFolders) ?? d.removeEmptyFolders
         ignoreHidden = try c.decodeIfPresent(Bool.self, forKey: .ignoreHidden) ?? d.ignoreHidden
         ignoreApps = try c.decodeIfPresent(Bool.self, forKey: .ignoreApps) ?? d.ignoreApps
         recentMinutes = try c.decodeIfPresent(Int.self, forKey: .recentMinutes) ?? d.recentMinutes

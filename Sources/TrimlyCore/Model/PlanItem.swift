@@ -20,6 +20,13 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
     public var approved: Bool
     public var classified: Bool
     public let sourceFingerprint: SourceFingerprint
+    public let relativePath: String
+    public let depth: Int
+    public let parentID: String?
+    /// Folders only: `keep` moves the folder as a unit, `distribute` plans its contents individually.
+    public var folderMode: FolderMode?
+    /// Inside a `keep` ancestor: travels with that folder, never approved or targeted on its own.
+    public var covered: Bool
 
     public init(
         id: String,
@@ -40,7 +47,12 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         critical: Bool = false,
         approved: Bool = false,
         classified: Bool = false,
-        sourceFingerprint: SourceFingerprint
+        sourceFingerprint: SourceFingerprint,
+        relativePath: String? = nil,
+        depth: Int = 0,
+        parentID: String? = nil,
+        folderMode: FolderMode? = nil,
+        covered: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -61,5 +73,39 @@ public struct PlanItem: Codable, Equatable, Sendable, Identifiable {
         self.approved = approved
         self.classified = classified
         self.sourceFingerprint = sourceFingerprint
+        self.relativePath = relativePath ?? name
+        self.depth = depth
+        self.parentID = parentID
+        self.folderMode = folderMode
+        self.covered = covered
+    }
+
+    /// Plans written before nested scanning lack the tree fields; they decode as top-level items.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        source = try c.decode(URL.self, forKey: .source)
+        kind = try c.decode(EntryKind.self, forKey: .kind)
+        fileExtension = try c.decode(String.self, forKey: .fileExtension)
+        resolvedDate = try c.decode(Date.self, forKey: .resolvedDate)
+        categoryID = try c.decodeIfPresent(String.self, forKey: .categoryID)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        target = try c.decodeIfPresent(URL.self, forKey: .target)
+        confidence = try c.decodeIfPresent(Double.self, forKey: .confidence)
+        reason = try c.decodeIfPresent(String.self, forKey: .reason)
+        decidedBy = try c.decodeIfPresent(DecidedBy.self, forKey: .decidedBy)
+        status = try c.decode(ItemStatus.self, forKey: .status)
+        reviewReason = try c.decodeIfPresent(ReviewReason.self, forKey: .reviewReason)
+        skipReason = try c.decodeIfPresent(String.self, forKey: .skipReason)
+        critical = try c.decode(Bool.self, forKey: .critical)
+        approved = try c.decode(Bool.self, forKey: .approved)
+        classified = try c.decode(Bool.self, forKey: .classified)
+        sourceFingerprint = try c.decode(SourceFingerprint.self, forKey: .sourceFingerprint)
+        relativePath = try c.decodeIfPresent(String.self, forKey: .relativePath) ?? name
+        depth = try c.decodeIfPresent(Int.self, forKey: .depth) ?? 0
+        parentID = try c.decodeIfPresent(String.self, forKey: .parentID)
+        folderMode = try c.decodeIfPresent(FolderMode.self, forKey: .folderMode)
+        covered = try c.decodeIfPresent(Bool.self, forKey: .covered) ?? false
     }
 }

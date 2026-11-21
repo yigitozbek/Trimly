@@ -20,6 +20,9 @@ public enum Recovery {
             case .mkdir:
                 guard let path = entry.path else { continue }
                 completed = fm.fileExists(atPath: path)
+            case .rmdir:
+                guard let path = entry.path else { continue }
+                completed = fm.fileExists(atPath: path) == false
             case nil:
                 continue
             }

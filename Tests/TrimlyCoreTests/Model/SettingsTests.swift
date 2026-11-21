@@ -10,6 +10,7 @@ struct SettingsTests {
         #expect(s.namingPreset == .dateCategoryDescription && s.targetMode == .inPlace)
         #expect(s.archiveRoot == "~/Documents/Arsiv" && s.yearSubfolders == false)
         #expect(s.categories.count == 22 && s.categoryLanguage == .tr)
+        #expect(s.scanDepth == 3 && s.distributeThreshold == 0.8 && s.removeEmptyFolders == false)
     }
 
     @Test func missingKeysFallBackToDefaults() throws {
