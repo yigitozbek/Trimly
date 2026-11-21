@@ -19,7 +19,8 @@ struct IgnoreRulesTests {
 
     @Test(arguments: ["big.zip.crdownload", "x.part", "y.download", "z.opdownload"])
     func partialDownloads(_ name: String) {
-        #expect(rules.skipReason(for: .stub(name)) == "Yarım indirme")
+        // Fresh (default stub dates are two days old → stale → TrashDetector, not skipped).
+        #expect(rules.skipReason(for: .stub(name, modifiedAt: now, createdAt: now)) == "Yarım indirme")
     }
 
     @Test(.tags(.edgeCase)) func recentUsesNewestOfDates() {

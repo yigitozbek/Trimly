@@ -8,7 +8,8 @@ struct NestedPlannerTests {
         for path in files {
             let url = f.root.appending(path: path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try TestFS.file(url.lastPathComponent, in: url.deletingLastPathComponent())
+            // Unique bytes so TrashDetector does not mark same-size stubs as duplicates.
+            try TestFS.file(url.lastPathComponent, in: url.deletingLastPathComponent(), contents: path)
         }
     }
 
@@ -58,6 +59,9 @@ struct NestedPlannerTests {
     @Test(.tags(.edgeCase)) func folderWithRecentOrPartialChildCannotMoveAsUnit() async throws {
         let f = try PlannerFixture(standardFiles: false)
         try tree(f, (1...4).map { "Indirme/\($0).jpg" } + ["Indirme/x.crdownload"])
+        // Fresh partial: older defaults would be stale Trash candidates and would not pin the folder.
+        let partial = f.root.appending(path: "Indirme/x.crdownload")
+        try FileManager.default.setAttributes([.creationDate: Date(), .modificationDate: Date()], ofItemAtPath: partial.path)
         let plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         #expect(plan.item("Indirme").folderMode == .distribute)
         #expect(plan.item(path: "Indirme/x.crdownload").skipReason == "Yarım indirme")
@@ -98,6 +102,8 @@ struct NestedPlannerTests {
     @Test(.tags(.edgeCase)) func pinnedFolderCannotBeKept() async throws {
         let f = try PlannerFixture(standardFiles: false)
         try tree(f, (1...4).map { "Indirme/\($0).jpg" } + ["Indirme/x.crdownload", "Calisma/a.pdf", "Calisma/b.pdf", "Calisma/proj/.git/HEAD"])
+        let partial = f.root.appending(path: "Indirme/x.crdownload")
+        try FileManager.default.setAttributes([.creationDate: Date(), .modificationDate: Date()], ofItemAtPath: partial.path)
         var plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         for name in ["Indirme", "Calisma"] {
             let folder = plan.item(name)

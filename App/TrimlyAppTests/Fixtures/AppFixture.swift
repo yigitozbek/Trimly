@@ -19,14 +19,15 @@ struct AppFixture {
 
     static func standard() throws -> AppFixture {
         let fixture = try empty()
-        try TestFS.file("Screenshot 2025-03-14 at 10.22.31.png", in: fixture.root)
+        // Unique contents: TrashDetector groups equal-size SHA-256 matches as duplicates.
+        try TestFS.file("Screenshot 2025-03-14 at 10.22.31.png", in: fixture.root, contents: "screenshot-bytes")
         try TestFS.file("download (3).pdf", in: fixture.root, contents: "Fatura No 123")
-        try TestFS.file("kimlik.pdf", in: fixture.root)
-        try TestFS.file("song.mp3", in: fixture.root)
-        try TestFS.file(".DS_Store", in: fixture.root)
+        try TestFS.file("kimlik.pdf", in: fixture.root, contents: "kimlik-bytes")
+        try TestFS.file("song.mp3", in: fixture.root, contents: "song-bytes")
+        try TestFS.file(".DS_Store", in: fixture.root, contents: "ds-store")
         let album = try TestFS.folder("Album", in: fixture.root)
         for index in 0..<3 {
-            try TestFS.file("p\(index).jpg", in: album)
+            try TestFS.file("p\(index).jpg", in: album, contents: "photo-\(index)")
         }
         return fixture
     }

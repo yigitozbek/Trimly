@@ -16,17 +16,18 @@ struct PlannerFixture {
         // Fresh temp files may report Spotlight "date added = now"; keep the recent-change rule out of these tests.
         settings.recentMinutes = 0
         if standardFiles {
-            try TestFS.file("Screenshot 2025-03-14 at 10.22.31.png", in: root)
+            // Unique contents: TrashDetector groups equal-size SHA-256 matches as duplicates.
+            try TestFS.file("Screenshot 2025-03-14 at 10.22.31.png", in: root, contents: "screenshot-bytes")
             let invoice = try DocumentFactory.pdf(["Fatura No 123"], in: root, name: "download (3).pdf")
             try FileManager.default.setAttributes([.creationDate: Date.feb10Midday, .modificationDate: Date.twoDaysAgo], ofItemAtPath: invoice.path)
-            try TestFS.file("cert.der", in: root)
+            try TestFS.file("cert.der", in: root, contents: "cert-bytes")
             try TestFS.file("kimlik.pdf", in: root, contents: "TC kimlik no 12345678901")
-            try TestFS.file("song.mp3", in: root)
-            try TestFS.file(".DS_Store", in: root)
+            try TestFS.file("song.mp3", in: root, contents: "song-bytes")
+            try TestFS.file(".DS_Store", in: root, contents: "ds-store")
             let project = try TestFS.folder("myproj", in: root)
             try TestFS.folder(".git", in: project)
             let album = try TestFS.folder("Album", in: root)
-            for i in 0..<8 { try TestFS.file("p\(i).jpg", in: album) }
+            for i in 0..<8 { try TestFS.file("p\(i).jpg", in: album, contents: "photo-\(i)") }
         }
     }
 

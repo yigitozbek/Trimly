@@ -77,6 +77,10 @@ extension Planner {
                 current.items[index] = updated
             }
             TargetAssigner.assign(&current)
+            // Keep existing trashReason; only clear auto-approval for candidates after stage 2.
+            for index in current.items.indices where current.items[index].trashReason != nil {
+                current.items[index].approved = false
+            }
             try store.save(current)
             return current
         }

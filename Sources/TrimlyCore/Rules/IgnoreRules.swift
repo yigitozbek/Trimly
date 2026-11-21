@@ -45,6 +45,12 @@ public struct IgnoreRules: Sendable {
             return "Uygulama paketi"
         }
         if Self.partialDownloadExtensions.contains(lastExtension) {
+            // Stale partials become Trash candidates (TrashDetector); only fresh ones are skipped here.
+            // No usable date → treat as fresh (safe: leave alone).
+            if let age = TrashDetector.ageDate(of: item),
+               now.timeIntervalSince(age) >= Double(settings.trashPartialDownloadAgeDays) * 86_400 {
+                return nil
+            }
             return "Yarım indirme"
         }
         if isFolder && projectFolderNames.contains(item.name.lowercased()) {

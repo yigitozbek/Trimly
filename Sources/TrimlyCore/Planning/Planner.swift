@@ -163,7 +163,7 @@ public struct Planner: Sendable {
             }
         }
 
-        Self.finalize(&plan)
+        Self.finalize(&plan, files: tree.items, now: startedAt)
         try store.save(plan)
         return plan
     }
@@ -181,12 +181,16 @@ public struct Planner: Sendable {
         SHA256.hash(data: Data(url.standardizedFileURL.path.utf8)).prefix(4).map { String(format: "%02x", $0) }.joined()
     }
 
-    static func finalize(_ plan: inout Plan) {
+    static func finalize(_ plan: inout Plan, files: [FileItem] = [], now: Date = Date()) {
         CoverageResolver.apply(&plan)
         TargetAssigner.assign(&plan)
+        if files.isEmpty == false {
+            TrashDetector.apply(&plan, files: files, settings: plan.settingsSnapshot, now: now)
+        }
         for index in plan.items.indices {
             let item = plan.items[index]
-            plan.items[index].approved = item.status == .ready && item.critical == false && item.kind != .folder && item.covered == false
+            plan.items[index].approved = item.status == .ready && item.critical == false && item.kind != .folder
+                && item.covered == false && item.trashReason == nil
         }
         plan.state = .ready
     }
