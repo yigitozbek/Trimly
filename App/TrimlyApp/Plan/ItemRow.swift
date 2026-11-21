@@ -38,9 +38,15 @@ struct ItemRow: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 if item.existingTags.isEmpty == false {
-                    Text("Etiketler: " + item.existingTags.joined(separator: ", "))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    Button {
+                        SettingsOpener.open(.tags)
+                    } label: {
+                        Text("Etiketler: " + item.existingTags.joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Etiket eşlemelerini ayarla")
                 }
                 if item.folderMode == .keep {
                     coverageText
@@ -62,6 +68,9 @@ struct ItemRow: View {
                 FinderReveal.reveal(item: item)
             }
             .disabled(FinderReveal.url(for: item) == nil)
+            Button("Etiket eşlemeleri…", systemImage: "tag") {
+                SettingsOpener.open(.tags)
+            }
         }
         .onChange(of: isApproved) { _, approved in
             guard approved != item.approved else { return }
