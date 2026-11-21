@@ -74,7 +74,8 @@ public struct Planner: Sendable {
                 depth: file.depth,
                 parentID: file.parentRelativePath.flatMap { idByPath[$0] },
                 modeLock: Self.modeLock(for: file, pinnedBy: pinned[file.relativePath], ignore: ignore),
-                listed: file.kind == .folder && tree.descended.contains(file.relativePath)
+                listed: file.kind == .folder && tree.descended.contains(file.relativePath),
+                existingTags: file.finderTags
             )
             // Computed for skipped items too: a manual `set` may un-skip them later. Inherited: everything inside a
             // folder that is critical by name ("Kimlik", "Bordro"…) stays critical when the folder is distributed.

@@ -1,7 +1,7 @@
 import Foundation
 
-/// (Re)computes every item's target from the plan's settings snapshot. Items are processed by name so the
-/// `_2`, `_3` suffixes are deterministic across runs and edits.
+/// (Re)computes every item's target and the tags a run adds, from the plan's settings snapshot. Items are processed
+/// by path so the `_2`, `_3` suffixes are deterministic across runs and edits. In `tagOnly` mode nothing gets a target.
 public enum TargetAssigner {
     public static func assign(_ plan: inout Plan) {
         let settings = plan.settingsSnapshot
@@ -11,6 +11,7 @@ public enum TargetAssigner {
 
         for index in order {
             var item = plan.items[index]
+            item.tagsToAdd = []
             // Covered items move with their kept folder; a distributed folder never moves itself.
             guard item.status != .skipped,
                   item.covered == false,
@@ -18,6 +19,20 @@ public enum TargetAssigner {
                   let categoryID = item.categoryID,
                   let category = settings.category(id: categoryID) else {
                 item.target = nil
+                plan.items[index] = item
+                continue
+            }
+            let tag = category.tag.value(language)
+            let hasTag = item.existingTags.contains { $0.compare(tag, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
+            if settings.targetMode == .tagOnly {
+                item.target = nil
+                if hasTag {
+                    item.status = .skipped
+                    item.skipReason = "Zaten etiketli"
+                    item.approved = false
+                } else {
+                    item.tagsToAdd = [tag]
+                }
                 plan.items[index] = item
                 continue
             }
@@ -42,6 +57,7 @@ public enum TargetAssigner {
                 item.target = nil
             } else {
                 item.target = target
+                item.tagsToAdd = settings.addCategoryTags && hasTag == false ? [tag] : []
             }
             plan.items[index] = item
         }
