@@ -14,7 +14,8 @@ extension FileItem {
         isLink: Bool = false,
         url: URL? = nil,
         depth: Int = 0,
-        parent: String? = nil
+        parent: String? = nil,
+        tags: [String] = []
     ) -> FileItem {
         FileItem(
             url: url ?? URL(filePath: "/tmp/trimly-stub").appending(path: name),
@@ -31,7 +32,8 @@ extension FileItem {
             isLink: isLink,
             relativePath: parent.map { "\($0)/\(name)" } ?? name,
             depth: depth,
-            parentRelativePath: parent
+            parentRelativePath: parent,
+            finderTags: tags
         )
     }
 }

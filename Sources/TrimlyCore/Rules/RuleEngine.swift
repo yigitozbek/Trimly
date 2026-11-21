@@ -1,13 +1,20 @@
 import Foundation
 
-/// Deterministic first pass: file-name patterns, then the extension map. Never calls the LLM.
+/// Deterministic first pass: Finder tags, then file-name patterns, then the extension map. Never calls the LLM.
 public struct RuleEngine: Sendable {
     private static let folderMajority = 0.7
     private static let keywordCategories: Set<String> = ["documents", "images", "spreadsheets"]
 
-    public init(settings: Settings) {}
+    private let settings: Settings
+
+    public init(settings: Settings) {
+        self.settings = settings
+    }
 
     public func match(_ item: FileItem) -> RuleMatch {
+        if let tagged = TagRule.match(item.finderTags, settings: settings) {
+            return RuleMatch(categoryID: tagged.categoryID, strength: .decisive, descriptionHint: nil, tag: tagged.tag)
+        }
         if item.kind == .folder {
             return folderMatch(item.folderExtensionHistogram)
         }

@@ -39,6 +39,10 @@ extension Planner {
             }
             var item = plan.items[index]
             let rule = rules.match(file)
+            // The user's own tag decided the category; a second opinion must not override it.
+            guard rule.tag == nil else {
+                continue
+            }
             let request = Self.preparedRequest(for: file, rule: rule, item: &item, settings: settings, maxCharacters: 4000, pdfPages: 2)
             do {
                 let result = try await provider.classify(request, model: settings.stage2Model)

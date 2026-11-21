@@ -78,7 +78,10 @@ public struct Planner: Sendable {
             )
             // Computed for skipped items too: a manual `set` may un-skip them later. Inherited: everything inside a
             // folder that is critical by name ("Kimlik", "Bordro"…) stays critical when the folder is distributed.
-            item.critical = detector.isCritical(file) || (file.parentRelativePath.flatMap { criticalByPath[$0] } ?? false)
+            // A tag naming a sensitive category ("Kimlik" → Resmi-Evrak) is as critical as a sensitive LLM verdict.
+            item.critical = detector.isCritical(file)
+                || (file.parentRelativePath.flatMap { criticalByPath[$0] } ?? false)
+                || TagRule.match(file.finderTags, settings: settings).map { Self.sensitiveCategoryIDs.contains($0.categoryID) } == true
             criticalByPath[file.relativePath] = item.critical
             if let reason = skipReasons[offset] {
                 item.status = .skipped
@@ -120,10 +123,16 @@ public struct Planner: Sendable {
                 item.reviewReason = .mixedFolder
             } else if entry.rule.strength == .decisive && entry.file.kind != .folder {
                 Self.applyDecisive(entry.rule, to: &item, settings: settings)
+            } else if entry.rule.tag != nil {
+                // A tagged folder takes the tag's category without asking the LLM; folders still need a manual approval.
+                Self.applyFallback(entry.rule, to: &item, reason: .weakRuleNoLLM, message: nil, settings: settings)
             } else if llm != nil && item.covered == false {
                 pending.append(entry)
             } else {
                 Self.applyFallback(entry.rule, to: &item, reason: .weakRuleNoLLM, message: nil, settings: settings)
+            }
+            if let tag = entry.rule.tag {
+                item.reason = "Etiket: \(tag)"
             }
             plan.items[entry.index] = item
         }
