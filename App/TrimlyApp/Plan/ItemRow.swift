@@ -71,6 +71,10 @@ struct ItemRow: View {
             Button("Etiket eşlemeleri…", systemImage: "tag") {
                 SettingsOpener.open(.tags)
             }
+            Button("Önizle", systemImage: "eye") {
+                QuickLookPresenter.shared.present(item: item)
+            }
+            .disabled(QuickLookPresenter.previewURL(for: item) == nil)
         }
         .onChange(of: isApproved) { _, approved in
             guard approved != item.approved else { return }

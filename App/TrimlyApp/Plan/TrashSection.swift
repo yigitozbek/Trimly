@@ -9,6 +9,7 @@ struct TrashSection: View {
             Section("Çöp adayları (\(items.count))") {
                 ForEach(items) { item in
                     TrashRow(item: item, session: session)
+                        .tag(item.id)
                 }
             }
         }

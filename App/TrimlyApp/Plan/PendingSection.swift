@@ -16,6 +16,7 @@ struct PendingSection: View {
                 ForEach(group.items) { item in
                     ItemRow(item: item, session: session, isEditable: session.isReadOnly == false)
                         .padding(.leading, group.folder == nil ? 0 : 18)
+                        .tag(item.id)
                 }
             }
         } header: {

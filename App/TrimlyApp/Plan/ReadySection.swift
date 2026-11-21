@@ -9,6 +9,7 @@ struct ReadySection: View {
                 DisclosureGroup {
                     ForEach(group.items) { item in
                         ItemRow(item: item, session: session, isEditable: false)
+                            .tag(item.id)
                     }
                 } label: {
                     CategoryGroupHeader(group: group, session: session)
