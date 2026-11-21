@@ -27,6 +27,14 @@ enum URLRouter {
         return .organize(URL(filePath: path, directoryHint: .isDirectory).standardizedFileURL)
     }
 
+    static func message(for error: RouteError) -> String {
+        switch error {
+        case .unsupported: "Bu bağlantı Trimly tarafından desteklenmiyor."
+        case .missingPath: "Bağlantıda klasör yolu yok."
+        case .notAFolder(let path): "Klasör bulunamadı: \(path)"
+        }
+    }
+
     static func organizeURL(for folder: URL) -> URL {
         var components = URLComponents()
         components.scheme = "trimly"

@@ -25,7 +25,7 @@ struct ItemRow: View {
             Toggle("Onayla", isOn: $isApproved)
                 .toggleStyle(.checkbox)
                 .labelsHidden()
-                .disabled(session.isReadOnly)
+                .disabled(session.isReadOnly || session.isBusy)
                 .accessibilityLabel("\(item.name) onayı")
             ItemStatusIcon(item: item)
             VStack(alignment: .leading, spacing: 3) {
@@ -41,6 +41,7 @@ struct ItemRow: View {
             Spacer(minLength: 12)
             if isEditable {
                 ItemEditor(item: item, categories: categories, categoryID: $categoryID, descriptionText: $descriptionText, onSubmitDescription: submitDescription)
+                    .disabled(session.isBusy)
             }
         }
         .padding(.vertical, 2)
@@ -53,9 +54,11 @@ struct ItemRow: View {
             session.setCategory(newCategory, for: item.id)
         }
         .onChange(of: item) { _, updated in
-            isApproved = updated.approved
-            categoryID = updated.categoryID ?? "other"
-            descriptionText = updated.description ?? ""
+            sync(with: updated)
+        }
+        .onChange(of: session.revision) {
+            // After a refused or failed edit the item may be unchanged, so `onChange(of: item)` does not fire.
+            sync(with: item)
         }
     }
 
@@ -66,6 +69,12 @@ struct ItemRow: View {
     private var categories: [(id: String, title: String)] {
         guard let settings = session.plan?.settingsSnapshot else { return [] }
         return settings.categories.map { ($0.id, $0.folder.value(settings.categoryLanguage)) }
+    }
+
+    private func sync(with current: PlanItem) {
+        isApproved = current.approved
+        categoryID = current.categoryID ?? "other"
+        descriptionText = current.description ?? ""
     }
 
     private func submitDescription() {

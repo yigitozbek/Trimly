@@ -17,7 +17,7 @@ struct RunsModelTests {
             roots.append(root)
         }
         let model = RunsModel(environment: fixture.environment(), limit: 5)
-        model.refresh()
+        await model.refresh()
         #expect(model.runs.count == 5)
         #expect(model.runs.first?.root == roots[5].path)
     }
@@ -27,7 +27,7 @@ struct RunsModelTests {
         try TestFS.file("IMG_0001.HEIC", in: fixture.root)
         try await fixture.applyOnce()
         let model = RunsModel(environment: fixture.environment(), limit: nil)
-        model.refresh()
+        await model.refresh()
         let runID = try #require(model.runs.first?.runID)
         await model.undo(runID: runID)
         #expect(model.lastUndo?.restored == 1)

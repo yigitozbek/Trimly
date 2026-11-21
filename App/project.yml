@@ -56,6 +56,8 @@ targets:
       - TrimlyAppTests
       - path: ../Tests/TrimlyCoreTests/Fixtures/TestFS.swift
       - path: ../Tests/TrimlyCoreTests/Fixtures/MockLLMProvider.swift
+      - path: ../Tests/TrimlyCoreTests/Fixtures/Gate.swift
+      - path: ../Tests/TrimlyCoreTests/Fixtures/GatedProvider.swift
     dependencies:
       - target: TrimlyApp
       - package: Trimly
@@ -75,3 +77,6 @@ schemes:
     test:
       targets:
         - TrimlyAppTests
+      environmentVariables:
+        # The test host is the full app: keep its launch-time recovery and plans away from the real data directory.
+        TRIMLY_DATA_DIR: /tmp/trimly-app-tests

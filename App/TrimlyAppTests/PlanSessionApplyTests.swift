@@ -17,7 +17,7 @@ struct PlanSessionApplyTests {
     @Test func applyMovesApprovedAndBecomesReadOnly() async throws {
         let f = try AppFixture.standard()
         let session = await startedSession(f)
-        await session.apply()
+        await session.apply(confirming: session.applySummary)
         let run = try #require(session.lastRun)
         #expect(session.phase == .applied(runID: run.runID))
         #expect(run.moved == 2 && session.isReadOnly)
@@ -29,7 +29,7 @@ struct PlanSessionApplyTests {
         let session = await startedSession(f)
         let song = f.root.appending(path: "song.mp3")
         try FileManager.default.removeItem(at: song)
-        await session.apply()
+        await session.apply(confirming: session.applySummary)
         #expect(session.lastRun?.skipped.contains(SkippedEntry(path: song.path, reason: "Kaynak bulunamadı")) == true)
         if case .applied = session.phase {} else { Issue.record("phase \(session.phase) should be .applied") }
     }
@@ -37,7 +37,7 @@ struct PlanSessionApplyTests {
     @Test func undoAfterApplyRestores() async throws {
         let f = try AppFixture.standard()
         let session = await startedSession(f)
-        await session.apply()
+        await session.apply(confirming: session.applySummary)
         await session.undoLastApply()
         #expect(session.lastUndo?.restored == 2)
         #expect(FileManager.default.fileExists(atPath: f.root.appending(path: shotName).path))
@@ -47,7 +47,7 @@ struct PlanSessionApplyTests {
         let f = try AppFixture.standard()
         let session = await startedSession(f)
         let lock = try DataLock.acquire(in: f.data)
-        await session.apply()
+        await session.apply(confirming: session.applySummary)
         #expect(session.phase == .failed("Başka bir Trimly işlemi sürüyor; bitince tekrar deneyin."))
         withExtendedLifetime(lock) {}
     }

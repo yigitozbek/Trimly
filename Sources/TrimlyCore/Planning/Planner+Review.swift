@@ -5,7 +5,7 @@ extension Planner {
     /// Unloads the stage-1 model first (16 GB machines). Critical items never get content and never get approved here.
     @concurrent
     public func review(planID: String) async throws -> Plan {
-        var plan = try store.load(id: planID)
+        let plan = try store.load(id: planID)
         switch plan.state {
         case .applied: throw PlanError.alreadyApplied
         case .inProgress: throw PlanError.notReady
@@ -27,6 +27,7 @@ extension Planner {
         let rules = RuleEngine(settings: settings)
 
         var processed = 0
+        var updates: [String: PlanItem] = [:]
         for index in candidates {
             try Task.checkCancellation()
             processed += 1
@@ -45,7 +46,7 @@ extension Planner {
                 if item.status == .ready && item.critical == false && item.kind != .folder {
                     item.approved = true
                 }
-                plan.items[index] = item
+                updates[item.id] = item
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
@@ -54,8 +55,23 @@ extension Planner {
             progress?(PlanProgress(processed: processed, total: candidates.count, stage: 2))
         }
 
-        TargetAssigner.assign(&plan)
-        try store.save(plan)
-        return plan
+        // Stage 2 runs for minutes; merge its results into the plan as it is on disk *now*, under the lock:
+        // an applied plan stays applied, and items changed elsewhere meanwhile (app, CLI) keep those changes.
+        let started = Dictionary(plan.items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return try store.withLock {
+            var current = try store.load(id: planID)
+            guard current.state == .ready else {
+                throw PlanError.alreadyApplied
+            }
+            for (id, updated) in updates {
+                guard let index = current.items.firstIndex(where: { $0.id == id }), current.items[index] == started[id] else {
+                    continue
+                }
+                current.items[index] = updated
+            }
+            TargetAssigner.assign(&current)
+            try store.save(current)
+            return current
+        }
     }
 }

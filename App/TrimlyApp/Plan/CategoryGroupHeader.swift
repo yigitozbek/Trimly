@@ -14,7 +14,7 @@ struct CategoryGroupHeader: View {
             }
         }
         .buttonStyle(.plain)
-        .disabled(session.isReadOnly)
+        .disabled(session.isReadOnly || session.isBusy)
         .accessibilityValue(accessibilityValue)
         .help(group.approval == .all ? "Bu kategorideki tüm öğelerin onayını kaldır" : "Bu kategorideki tüm öğeleri onayla")
     }

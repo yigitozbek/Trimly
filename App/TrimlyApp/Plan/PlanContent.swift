@@ -14,6 +14,9 @@ struct PlanContent: View {
 
     var body: some View {
         List {
+            if session.canResume {
+                ResumeRow(resume: resume, rescan: rescan)
+            }
             PendingSection(session: session)
             ReadySection(session: session)
             SkippedSection(session: session)
@@ -65,6 +68,10 @@ struct PlanContent: View {
         }
     }
 
+    private func resume() {
+        Task { await session.start() }
+    }
+
     private func rescan() {
         Task { await session.rescan() }
     }
@@ -79,7 +86,7 @@ struct PlanContent: View {
 
     private func apply() {
         isConfirmingApply = false
-        Task { await session.apply() }
+        Task { await session.apply(confirming: session.applySummary) }
     }
 
     private func showResult() {

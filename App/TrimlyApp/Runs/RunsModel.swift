@@ -17,13 +17,19 @@ final class RunsModel {
         self.limit = limit
     }
 
-    func refresh() {
+    func refresh() async {
         do {
-            let all = try RunLog.list(in: environment.directory)
+            let all = try await Self.list(environment.directory)
             runs = limit.map { Array(all.prefix($0)) } ?? all
         } catch {
             errorMessage = UserMessage.text(for: error)
         }
+    }
+
+    /// Journals accumulate; parse them off the main actor.
+    @concurrent
+    private static func list(_ directory: DataDirectory) async throws -> [RunInfo] {
+        try RunLog.list(in: directory)
     }
 
     func undo(runID: String) async {
@@ -33,6 +39,6 @@ final class RunsModel {
         } catch {
             errorMessage = UserMessage.text(for: error)
         }
-        refresh()
+        await refresh()
     }
 }

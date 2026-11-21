@@ -30,6 +30,37 @@ struct ReviewAndEditorTests {
         #expect(reviewed.item("download (3).pdf").decidedBy == .llm2)
     }
 
+    @Test(.tags(.edgeCase)) func reviewKeepsChangesMadeWhileItRan() async throws {
+        let f = try PlannerFixture()
+        let plan = try await rulesOnlyPlan(f)
+        let gate = Gate()
+        let provider = GatedProvider(gate: gate, wrapped: MockLLMProvider(defaultResult: PlannerFixture.result("Faturalar", "Enerjisa Ocak", 0.9)))
+        let review = Task { try await f.planner(provider).review(planID: plan.id) }
+        await gate.waitUntilEntered()
+        var onDisk = try f.store.load(id: plan.id)
+        try PlanEditor.set(&onDisk, itemID: onDisk.item("download (3).pdf").id, categoryID: "contracts", description: "Kira", approve: nil)
+        try f.store.save(onDisk)
+        await gate.release()
+        let reviewed = try await review.value
+        #expect(reviewed.item("download (3).pdf").decidedBy == .manual && reviewed.item("download (3).pdf").categoryID == "contracts")
+        #expect(reviewed.item("kimlik.pdf").decidedBy == .llm2)
+        #expect(try f.store.load(id: plan.id).item("download (3).pdf").categoryID == "contracts")
+    }
+
+    @Test(.tags(.edgeCase)) func reviewDoesNotResurrectAppliedPlan() async throws {
+        let f = try PlannerFixture()
+        let plan = try await rulesOnlyPlan(f)
+        let gate = Gate()
+        let provider = GatedProvider(gate: gate, wrapped: MockLLMProvider(defaultResult: PlannerFixture.result("Faturalar", "Enerjisa Ocak", 0.9)))
+        let review = Task { try await f.planner(provider).review(planID: plan.id) }
+        await gate.waitUntilEntered()
+        let run = try await Executor(directory: f.data).apply(planID: plan.id)
+        await gate.release()
+        await #expect(throws: PlanError.alreadyApplied) { try await review.value }
+        let saved = try f.store.load(id: plan.id)
+        #expect(saved.state == .applied && saved.appliedRunID == run.runID)
+    }
+
     @Test func reviewPromotesConfidentItems() async throws {
         let f = try PlannerFixture()
         let plan = try await rulesOnlyPlan(f)

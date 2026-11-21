@@ -32,4 +32,10 @@ struct URLRouterTests {
             try URLRouter.route(URL(string: string)!)
         }
     }
+
+    @Test func errorMessages() {
+        #expect(URLRouter.message(for: .unsupported) == "Bu bağlantı Trimly tarafından desteklenmiyor.")
+        #expect(URLRouter.message(for: .missingPath) == "Bağlantıda klasör yolu yok.")
+        #expect(URLRouter.message(for: .notAFolder("/tmp/x.txt")) == "Klasör bulunamadı: /tmp/x.txt")
+    }
 }

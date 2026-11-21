@@ -107,6 +107,19 @@ struct PlannerTests {
         #expect(plan.state == .ready)
     }
 
+    @Test func makePlanWithoutResumeIgnoresCheckpoint() async throws {
+        var f = try PlannerFixture(standardFiles: false)
+        f.settings.batchSize = 2
+        for i in 1...5 { try TestFS.file("belge\(i).pdf", in: f.root) }
+        let cancelling = MockLLMProvider(defaultResult: PlannerFixture.result("Belgeler"), cancelAfterCalls: 3)
+        await #expect(throws: CancellationError.self) {
+            try await f.planner(cancelling).makePlan(root: f.root, useLLM: true)
+        }
+        let checkpoint = try #require(try f.store.latestResumable(root: f.root, now: Date()))
+        let fresh = try await f.planner(MockLLMProvider(defaultResult: PlannerFixture.result("Belgeler"))).makePlan(root: f.root, useLLM: true, resume: false)
+        #expect(fresh.id != checkpoint.id)
+    }
+
     @Test func resumeOnlyWithin24Hours() async throws {
         let f = try PlannerFixture(standardFiles: false)
         try TestFS.file("a.pdf", in: f.root)

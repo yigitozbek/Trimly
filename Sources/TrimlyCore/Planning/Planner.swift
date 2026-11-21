@@ -25,11 +25,13 @@ public struct Planner: Sendable {
     }
 
     /// `@concurrent`: file and PDF reads must never run on a caller's main actor.
+    /// `resume: false` always starts a new plan with the current settings ("Yeniden tara").
     @concurrent
-    public func makePlan(root: URL, useLLM: Bool) async throws -> Plan {
+    public func makePlan(root: URL, useLLM: Bool, resume: Bool = true) async throws -> Plan {
         let startedAt = now()
         let scanned = try FolderScanner().scan(root: root)
-        var plan = try store.latestResumable(root: root, now: startedAt)
+        let resumable = resume ? try store.latestResumable(root: root, now: startedAt) : nil
+        var plan = resumable
             ?? Plan(id: newPlanID(root: root, at: startedAt), root: root, createdAt: startedAt, state: .inProgress, settingsSnapshot: settings, items: [])
         let settings = plan.settingsSnapshot
         let previous = Dictionary(plan.items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })

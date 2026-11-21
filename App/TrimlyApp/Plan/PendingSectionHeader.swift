@@ -13,7 +13,7 @@ struct PendingSectionHeader: View {
                 Label(title, systemImage: symbol)
             }
             .buttonStyle(.borderless)
-            .disabled(session.selectablePendingCount == 0 || session.isReadOnly)
+            .disabled(session.selectablePendingCount == 0 || session.isReadOnly || session.isBusy)
             .help("Görünen öğeleri seçer. Kritik (🔒) öğeler dahil edilmez; onları tek tek onaylayın.")
         }
     }

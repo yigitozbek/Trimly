@@ -53,6 +53,15 @@ public struct PlanStore: Sendable {
         }
     }
 
+    /// Runs a short read-modify-write under the data-directory lock (the same lock apply/undo hold),
+    /// so concurrent writers (app, CLI, stage 2) never overwrite each other's plan changes.
+    public func withLock<T>(_ body: () throws -> T) throws -> T {
+        let lock = try DataLock.acquire(in: directory)
+        return try withExtendedLifetime(lock) {
+            try body()
+        }
+    }
+
     private func url(for id: String) -> URL {
         directory.plansURL.appending(path: "\(id).json", directoryHint: .notDirectory)
     }

@@ -24,10 +24,10 @@ struct HistoryView: View {
         if model == nil {
             model = RunsModel(environment: environment, limit: nil)
         }
-        model?.refresh()
+        await model?.refresh()
     }
 
     private func refresh() {
-        model?.refresh()
+        Task { await model?.refresh() }
     }
 }

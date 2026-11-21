@@ -59,7 +59,7 @@ struct StartView: View {
         if runs == nil {
             runs = RunsModel(environment: environment, limit: 5)
         }
-        runs?.refresh()
+        await runs?.refresh()
         let settings = environment.loadSettings()
         let health = await environment.makeProvider(settings).health()
         status = .from(health, model: settings.stage1Model)
