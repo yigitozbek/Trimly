@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Deployment target macOS 14.0; Swift 6 strict concurrency; bundle id `app.trimly.Trimly`; `PRODUCT_NAME: Trimly`, `PRODUCT_MODULE_NAME: TrimlyApp`; team `UBF7FMWA6S`, otomatik imzalama; `ENABLE_APP_SANDBOX: NO`; Info.plist'te `CFBundleURLTypes` → şema `trimly`.
+- Deployment target macOS 14.0; Swift 6 strict concurrency; bundle id `app.trimly.Trimly`; `PRODUCT_NAME: Trimly`, `PRODUCT_MODULE_NAME: TrimlyApp`; team `8FCFVBQ4LK`, otomatik imzalama; `ENABLE_APP_SANDBOX: NO`; Info.plist'te `CFBundleURLTypes` → şema `trimly`.
 - `App/*.xcodeproj` `.gitignore`'da; üretim: `cd App && xcodegen generate`.
 - Uygulama yalnızca `TrimlyCore` + sistem framework'leri kullanır; yeni dış bağımlılık yok.
 - Proje skill'leri: `swiftui-pro` (her tür kendi dosyasında, UIKit yok, `foregroundStyle`, simge düğmelerinde metin etiketi / VoiceOver, view'da iş mantığı yok), `swift-concurrency-pro` (`@unchecked Sendable`/`nonisolated(unsafe)` yok, yapılandırılmış eşzamanlılık), `swift-testing-pro` (struct suite, `!` yok, belirli hata, parametreli test). View'lar test edilmez; view model'ler edilir.

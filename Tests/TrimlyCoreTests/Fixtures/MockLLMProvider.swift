@@ -1,5 +1,5 @@
 import Foundation
-@testable import TrimlyCore
+import TrimlyCore
 
 /// Scripted LLM: answers by file name, records requests/unloads, and can simulate cancellation after N calls.
 actor MockLLMProvider: LLMProvider {

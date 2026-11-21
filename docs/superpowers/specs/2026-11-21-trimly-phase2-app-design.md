@@ -41,7 +41,7 @@ dizinini paylaşır; davranışları ayrışmaz.
 - Proje XcodeGen ile üretilir (`App/project.yml`, `/opt/homebrew/bin/xcodegen` mevcut); `.xcodeproj`
   repoya girmez (`.gitignore`), `xcodegen generate` ile üretilir.
 - Uygulama sandbox'sız (Desktop/Downloads erişimi için TCC izni istenir), Apple Development imzası
-  (team `UBF7FMWA6S`), otomatik imzalama, bundle id `app.trimly.Trimly`.
+  (team `8FCFVBQ4LK`), otomatik imzalama, bundle id `app.trimly.Trimly`.
 - Tek dış bağımlılık yok: uygulama yalnızca `TrimlyCore` (yerel paket) ve sistem framework'leri kullanır.
 - Proje skill'leri: `swiftui-pro` (her tür kendi dosyasında, UIKit yok, erişilebilirlik etiketleri,
   modern API), `swift-concurrency-pro`, `swift-testing-pro`.

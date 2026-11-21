@@ -1,0 +1,73 @@
+name: Trimly
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: 8FCFVBQ4LK
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "Apple Development"
+    ENABLE_HARDENED_RUNTIME: NO
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  Trimly:
+    path: ..
+targets:
+  TrimlyApp:
+    type: application
+    platform: macOS
+    sources:
+      - TrimlyApp
+    dependencies:
+      - package: Trimly
+        product: TrimlyCore
+    info:
+      path: TrimlyApp/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Trimly
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.utilities
+        CFBundleURLTypes:
+          - CFBundleURLName: app.trimly.Trimly
+            CFBundleURLSchemes: [trimly]
+        NSDesktopFolderUsageDescription: Trimly, düzenlemek istediğin Masaüstü dosyalarını taramak ve taşımak için erişim ister.
+        NSDownloadsFolderUsageDescription: Trimly, düzenlemek istediğin İndirilenler dosyalarını taramak ve taşımak için erişim ister.
+        NSDocumentsFolderUsageDescription: Trimly, merkezi arşive dosya taşımak için Belgeler klasörüne erişim ister.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.trimly.Trimly
+        PRODUCT_NAME: Trimly
+        PRODUCT_MODULE_NAME: TrimlyApp
+        ENABLE_APP_SANDBOX: NO
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
+  TrimlyAppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - TrimlyAppTests
+      - path: ../Tests/TrimlyCoreTests/Fixtures/TestFS.swift
+      - path: ../Tests/TrimlyCoreTests/Fixtures/MockLLMProvider.swift
+    dependencies:
+      - target: TrimlyApp
+      - package: Trimly
+        product: TrimlyCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.trimly.TrimlyTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Trimly.app/Contents/MacOS/Trimly
+        BUNDLE_LOADER: $(TEST_HOST)
+schemes:
+  TrimlyApp:
+    build:
+      targets:
+        TrimlyApp: all
+        TrimlyAppTests: [test]
+    test:
+      targets:
+        - TrimlyAppTests

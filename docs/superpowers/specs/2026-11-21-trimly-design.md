@@ -11,7 +11,7 @@ onay olmadan taşınmaz; her uygulanan işlem tek aksiyonla geri alınabilir.
 
 Ortam (2026-11-21 itibarıyla doğrulandı): M2 Pro, 16 GB RAM, Xcode 27.2, Swift 6.4,
 Ollama 0.40.16 (`localhost:11434`, çalışıyor), yüklü modeller: `qwen3:4b`, `gemma3:4b`,
-`llama3.1`, `ministral-3:14b`. Apple Development imza sertifikası mevcut (team `UBF7FMWA6S`).
+`llama3.1`, `ministral-3:14b`. Apple Development imza sertifikası mevcut (team `8FCFVBQ4LK`).
 Desktop/Documents iCloud senkronizasyonu kapalı.
 
 Örnek yük: `~/Downloads` üst seviyede 385 öğe (144 png, 29 mp4, 26 pdf, 16 json, 12 jpeg,
