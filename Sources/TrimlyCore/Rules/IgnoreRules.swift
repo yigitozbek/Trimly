@@ -2,6 +2,8 @@ import Foundation
 
 /// Decides which scanned items are never touched. Returns a Turkish, user-facing reason or `nil`.
 public struct IgnoreRules: Sendable {
+    /// Skip reason for Trimly's own category folders (they are never re-moved).
+    public static let categoryFolderReason = "Trimly kategori klasörü"
     private static let systemFiles: Set<String> = [".DS_Store", ".localized"]
     private static let partialDownloadExtensions: Set<String> = ["crdownload", "part", "download", "opdownload"]
 
@@ -40,7 +42,7 @@ public struct IgnoreRules: Sendable {
             return "Yarım indirme"
         }
         if isFolder && categoryFolderNames.contains(item.name.lowercased()) {
-            return "Trimly kategori klasörü"
+            return Self.categoryFolderReason
         }
         if isFolder && projectFolderNames.contains(item.name.lowercased()) {
             return "Build/çıktı klasörü"

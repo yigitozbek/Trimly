@@ -30,7 +30,7 @@ public struct Planner: Sendable {
     public func makePlan(root: URL, useLLM: Bool, resume: Bool = true) async throws -> Plan {
         let startedAt = now()
         let scanned = try FolderScanner().scan(root: root)
-        let resumable = resume ? try store.latestResumable(root: root, now: startedAt) : nil
+        let resumable = resume ? try store.latestResumable(root: root, now: startedAt).flatMap { $0.isReusable(with: settings) ? $0 : nil } : nil
         var plan = resumable
             ?? Plan(id: newPlanID(root: root, at: startedAt), root: root, createdAt: startedAt, state: .inProgress, settingsSnapshot: settings, items: [])
         let settings = plan.settingsSnapshot

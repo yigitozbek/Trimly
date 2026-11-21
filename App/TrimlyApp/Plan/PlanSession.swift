@@ -84,6 +84,19 @@ final class PlanSession {
         plan?.items.filter { ($0.status == .review || $0.status == .critical) && $0.approved == false }.count ?? 0
     }
 
+    /// Explains an empty plan for a folder that was organized before (its contents sit in category folders).
+    var notice: String? {
+        guard let plan, pendingItems.isEmpty, readyGroups.isEmpty else { return nil }
+        let categoryFolders = plan.items.filter { $0.skipReason == IgnoreRules.categoryFolderReason }.count
+        guard categoryFolders > 0 else { return nil }
+        switch plan.settingsSnapshot.targetMode {
+        case .central:
+            return "Bu klasör daha önce düzenlenmiş (\(categoryFolders) kategori klasörü). Kategori klasörlerinin içeriğini merkezi arşive taşımak henüz desteklenmiyor; iç içe tarama özelliğiyle gelecek."
+        case .inPlace:
+            return "Bu klasör zaten düzenli: \(categoryFolders) kategori klasörü var, düzenlenecek yeni öğe yok."
+        }
+    }
+
     var isReadOnly: Bool {
         plan?.state == .applied
     }
@@ -127,7 +140,8 @@ final class PlanSession {
         phase = .scanning(nil)
         settings = environment.loadSettings()
         await refreshHealth()
-        if let existing = await Self.latestReady(store, root: root, now: environment.now()) {
+        // Reuse only a plan the current engine made with exactly the current settings; anything else is stale.
+        if let existing = await Self.latestReady(store, root: root, now: environment.now()), existing.isReusable(with: settings) {
             adopt(existing)
             phase = .idle
             return

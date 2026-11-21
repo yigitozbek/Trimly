@@ -120,6 +120,31 @@ struct PlannerTests {
         #expect(fresh.id != checkpoint.id)
     }
 
+    @Test(.tags(.edgeCase)) func checkpointFromOlderEngineOrOtherSettingsIsNotResumed() async throws {
+        let f = try PlannerFixture(standardFiles: false)
+        try TestFS.file("a.pdf", in: f.root)
+        var oldEngine = Plan(id: "old-engine", root: f.root, createdAt: Date(), state: .inProgress, settingsSnapshot: f.settings, items: [])
+        oldEngine.engineVersion = nil
+        try f.store.save(oldEngine)
+        #expect(try await f.planner(nil).makePlan(root: f.root, useLLM: false).id != "old-engine")
+
+        var otherSettings = f.settings
+        otherSettings.namingPreset = .keepOriginal
+        try f.store.save(Plan(id: "other-settings", root: f.root, createdAt: Date(), state: .inProgress, settingsSnapshot: otherSettings, items: []))
+        #expect(try await f.planner(nil).makePlan(root: f.root, useLLM: false).id != "other-settings")
+    }
+
+    @Test func plansWithoutEngineVersionDecodeAsNotReusable() throws {
+        let root = try TestFS.tempDir()
+        let plan = Plan.stub(root: root, items: [])
+        var json = try JSONSerialization.jsonObject(with: JSONCoding.encoder.encode(plan)) as! [String: Any]
+        json.removeValue(forKey: "engineVersion")
+        let decoded = try JSONCoding.decoder.decode(Plan.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(decoded.engineVersion == nil)
+        #expect(decoded.isReusable(with: Settings()) == false)
+        #expect(plan.isReusable(with: Settings()))
+    }
+
     @Test func resumeOnlyWithin24Hours() async throws {
         let f = try PlannerFixture(standardFiles: false)
         try TestFS.file("a.pdf", in: f.root)
