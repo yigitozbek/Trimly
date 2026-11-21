@@ -24,7 +24,8 @@ struct EmptyFolderTests {
         for path in files {
             let url = f.root.appending(path: path)
             try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try TestFS.file(url.lastPathComponent, in: url.deletingLastPathComponent())
+            // Unique bytes: identical defaults become trash-duplicate candidates and skip bulk approval.
+            try TestFS.file(url.lastPathComponent, in: url.deletingLastPathComponent(), contents: path)
         }
         var plan = try await f.planner(nil).makePlan(root: f.root, useLLM: false)
         let ids = plan.items.filter { $0.kind == .file && $0.target != nil && excluded.contains($0.relativePath) == false }.map(\.id)
