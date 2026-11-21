@@ -72,6 +72,11 @@ kararı bana bıraktı; **B seçildi** (benim kararım).
   penceresi açılır ve tarama başlar. Bilinmeyen host/eksik `path` → uyarı.
 - `NSApplicationDelegateAdaptor`: `applicationDockMenu` ("Masaüstünü Düzenle", "İndirilenleri
   Düzenle"), `applicationShouldTerminateAfterLastWindowClosed → true`.
+- **URL ile açılış**: uygulama kapalıyken `trimly://` ile başlatılırsa açılış penceresi gösterilmez,
+  yalnızca plan penceresi açılır (macOS 15+'ta `defaultLaunchBehavior(.suppressed)`, macOS 14'te
+  açılış penceresini plan penceresi göründükten **sonra** kapatmak). Hiçbir an sıfır pencereli bir
+  ara durum oluşmamalı; aksi halde "son pencere kapandı" kuralı uygulamayı erken sonlandırır.
+- Plan penceresi kapanınca tarama/LLM görevi iptal edilir; Planner'ın checkpoint'i korunur.
 
 ### 5.2 Plan penceresi (düzen B)
 
@@ -185,8 +190,13 @@ App/
   onaydan hariç kalması, düzenlemenin diske yazılması, iptal sonrası checkpoint, uygula → sonuç →
   geri al), `SettingsModel` (anında kayıt, canlı adlandırma örneği), `URLRouter` (geçerli/geçersiz
   URL'ler), `HistoryModel`.
-- Elle doğrulama: uygulamayı derleyip geçici bir klasörle `open "trimly://organize?path=…"` açmak,
-  pencerenin ekran görüntüsünü almak; gerçek klasörlerde **uygula yok**.
+- Elle doğrulama (gerçek klasörlerde **uygula yok**; yalnızca geçici test klasörleri):
+  1. Uygulama kapalıyken `open "trimly://organize?path=<geçici klasör>"` → yalnızca plan penceresi
+     açılır, uygulama kendiliğinden kapanmaz; ekran görüntüsü alınır.
+  2. Ayarlar penceresi açıkken tüm plan/açılış pencereleri kapatılır → uygulama Ayarlar kapanana kadar
+     çalışmaya devam eder, Ayarlar kapanınca sonlanır.
+  3. Tarama sürerken plan penceresi kapatılır → görev iptal olur, uygulama sonlanır, `inProgress`
+     plan diske yazılmıştır; yeniden açınca kaldığı yerden sürer.
 
 ## 8. Kararlarım
 
