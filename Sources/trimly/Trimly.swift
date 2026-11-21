@@ -9,7 +9,7 @@ struct Trimly: AsyncParsableCommand {
         version: "0.1.0",
         subcommands: [
             PlanCommand.self, ReviewCommand.self, SetCommand.self, ApproveCommand.self,
-            ApplyCommand.self, UndoCommand.self, RunsCommand.self, SettingsCommand.self
+            ApplyCommand.self, TrashCommand.self, UndoCommand.self, RunsCommand.self, SettingsCommand.self
         ]
     )
 }

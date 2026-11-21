@@ -61,6 +61,11 @@ enum Output {
         let confidence = item.confidence.map { String(format: "%.2f", $0) } ?? "  — "
         // A locked folder offers no choice, so it must not say "dağıt / bütün tut seçin".
         var note = item.modeLock != nil ? "tek parça taşınamaz" : (item.reason ?? item.reviewReason.map(reviewLabel) ?? "")
+        if let trashed = item.trashedRunID, trashed.isEmpty == false {
+            note = note.isEmpty ? "çöpte" : "\(note)  çöpte"
+        } else if let trash = item.trashReason {
+            note = note.isEmpty ? trash.label : "\(note)  \(trash.label)"
+        }
         if item.existingTags.isEmpty == false {
             let tagsNote = "etiket: " + item.existingTags.joined(separator: ", ")
             note = note.isEmpty ? tagsNote : "\(note)  \(tagsNote)"

@@ -45,4 +45,19 @@ if xattr -px com.apple.metadata:_kMDItemUserTags "$ROOT3/fatura-ocak.pdf" 2>/dev
   echo "tag still present after undo" >&2
   exit 1
 fi
+
+# Trash: stale installer is a candidate; trash --yes moves it; undo restores.
+ROOT4="$TMP/root4"; DATA4="$TMP/data4"; mkdir -p "$ROOT4" "$DATA4"
+print '{"recentMinutes":0}' > "$DATA4/settings.json"
+print installer > "$ROOT4/Setup.dmg"
+OLD=$(date -r $(($(date +%s) - 40 * 86400)) +%Y%m%d%H%M.%S)
+touch -t "$OLD" "$ROOT4/Setup.dmg"
+OUT4=$($BIN plan "$ROOT4" --no-llm --data-dir "$DATA4")
+print -r -- "$OUT4" | grep -q "günden eski kurulum"
+PLAN4=$(print -r -- "$OUT4" | tail -1 | sed 's/^Plan kaydedildi: //')
+ITEM4=$(print -r -- "$OUT4" | grep "Setup.dmg" | awk '{print $3}')
+$BIN trash "$PLAN4" "$ITEM4" --yes --data-dir "$DATA4"
+test ! -f "$ROOT4/Setup.dmg"
+$BIN undo --data-dir "$DATA4"
+test -f "$ROOT4/Setup.dmg"
 echo "SMOKE OK"
