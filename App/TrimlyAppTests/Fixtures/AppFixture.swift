@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 import TrimlyCore
 @testable import TrimlyApp
 
@@ -47,6 +48,16 @@ struct AppFixture {
         let planner = Planner(settings: settings, store: PlanStore(directory: data), provider: nil, now: { now })
         let plan = try await planner.makePlan(root: root ?? self.root, useLLM: false)
         return try await Executor(directory: data, now: { now }).apply(planID: plan.id)
+    }
+}
+
+extension AppFixture {
+    static func result(_ folder: String, _ name: String = "Belge Ozeti", _ confidence: Double = 0.9) -> Result<ClassificationResult, any Error> {
+        .success(ClassificationResult(targetFolder: folder, suggestedName: name, confidence: confidence, reason: "test"))
+    }
+
+    func item(_ name: String, in plan: Plan?) throws -> PlanItem {
+        try #require(plan?.items.first { $0.name == name })
     }
 }
 
