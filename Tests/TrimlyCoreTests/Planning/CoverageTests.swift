@@ -73,4 +73,18 @@ struct CoverageTests {
         #expect(plan.item(path: "A/fatura.pdf").target?.lastPathComponent == "2025-02-10_Fatura_Enerjisa.pdf")
         #expect(plan.item(path: "B/fatura.pdf").target?.lastPathComponent == "2025-02-10_Fatura_Enerjisa_2.pdf")
     }
+
+    @Test(.tags(.edgeCase)) func bulkPathsNeverApproveFolderCarryingCritical() throws {
+        let root = try TestFS.tempDir()
+        let folder = PlanItem.stub("Tatil", in: root, category: "photos", kind: .folder, status: .review, reviewReason: .folder, folderMode: .keep)
+        let critical = PlanItem.stub("kimlik.pdf", in: root, category: "officialDocs", status: .critical, critical: true, parent: folder)
+        var plan = Plan.stub(root: root, items: [folder, critical])
+        CoverageResolver.apply(&plan)
+        TargetAssigner.assign(&plan)
+        #expect(plan.foldersCarryingCritical() == [folder.id])
+        #expect(PlanEditor.bulkApprove(&plan, categoryID: nil, reviewReason: nil, minConfidence: nil, includeFolders: true) == 0)
+        #expect(PlanEditor.setApproval(&plan, itemIDs: [folder.id], approved: true) == 0)
+        try PlanEditor.set(&plan, itemID: folder.id, categoryID: nil, description: nil, approve: true)
+        #expect(plan.item("Tatil").approved)
+    }
 }

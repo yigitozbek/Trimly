@@ -29,7 +29,7 @@ struct ItemRow: View {
                 .accessibilityLabel("\(item.name) onayı")
             ItemStatusIcon(item: item)
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.name)
+                Text(item.depth > 0 ? item.relativePath : item.name)
                 Text("→ \(targetText)")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -37,8 +37,14 @@ struct ItemRow: View {
                 Text(ItemFormatting.detail(item))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                if item.folderMode == .keep {
+                    coverageText
+                }
             }
             Spacer(minLength: 12)
+            if isEditable && item.kind == .folder && item.folderMode != nil && item.status != .skipped {
+                FolderModePicker(item: item, session: session)
+            }
             if isEditable {
                 ItemEditor(item: item, categories: categories, categoryID: $categoryID, descriptionText: $descriptionText, onSubmitDescription: submitDescription)
                     .disabled(session.isBusy)
@@ -60,6 +66,15 @@ struct ItemRow: View {
             // After a refused or failed edit the item may be unchanged, so `onChange(of: item)` does not fire.
             sync(with: item)
         }
+    }
+
+    /// "İçinde N öğe · M kritik dosya": what this folder carries when it moves as one unit.
+    private var coverageText: some View {
+        let coverage = session.coverage(of: item)
+        let critical = coverage.critical > 0 ? " · \(coverage.critical) kritik dosya; yalnızca tek tek onaylanabilir" : ""
+        return Text("İçinde \(coverage.count) öğe\(critical)")
+            .font(.caption)
+            .foregroundStyle(coverage.critical > 0 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
     }
 
     private var targetText: String {

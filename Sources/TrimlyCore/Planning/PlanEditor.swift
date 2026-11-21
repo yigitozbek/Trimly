@@ -40,16 +40,18 @@ public enum PlanEditor {
     }
 
     /// Approves matching items and returns how many changed. Filters combine with AND.
-    /// Never includes critical, skipped or target-less items; folders only with `includeFolders`.
+    /// Never includes critical, skipped or target-less items, nor kept folders carrying a critical item; folders only with `includeFolders`.
     public static func bulkApprove(_ plan: inout Plan, categoryID: String?, reviewReason: ReviewReason?, minConfidence: Double?, includeFolders: Bool) -> Int {
         guard plan.state == .ready else {
             return 0
         }
         var changed = 0
+        let carryingCritical = plan.foldersCarryingCritical()
         for index in plan.items.indices {
             let item = plan.items[index]
             guard item.approved == false,
                   item.critical == false,
+                  carryingCritical.contains(item.id) == false,
                   item.status != .critical,
                   item.status != .skipped,
                   item.target != nil,
@@ -97,18 +99,20 @@ public enum PlanEditor {
     }
 
     /// Sets approval for the given items and returns how many changed (e.g. "select all" over visible rows).
-    /// Approving never includes critical, skipped or target-less items; un-approving is always allowed.
+    /// Approving never includes critical, skipped or target-less items, nor kept folders carrying a critical item;
+    /// un-approving is always allowed.
     public static func setApproval(_ plan: inout Plan, itemIDs: Set<String>, approved: Bool) -> Int {
         guard plan.state == .ready else {
             return 0
         }
         var changed = 0
+        let carryingCritical = approved ? plan.foldersCarryingCritical() : []
         for index in plan.items.indices where itemIDs.contains(plan.items[index].id) {
             let item = plan.items[index]
             guard item.approved != approved, item.status != .skipped else {
                 continue
             }
-            if approved, item.critical || item.status == .critical || item.target == nil {
+            if approved, item.critical || item.status == .critical || item.target == nil || carryingCritical.contains(item.id) {
                 continue
             }
             plan.items[index].approved = approved

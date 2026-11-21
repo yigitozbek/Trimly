@@ -37,8 +37,48 @@ final class PlanSession {
 
     // MARK: Derived state
 
+    /// Top-level pending rows first, then one group per mixed (distributed) folder, by path. A mixed folder's own
+    /// row is its group's heading; rows inside nested mixed folders belong to the nearest one.
+    var pendingGroups: [PendingGroup] {
+        guard let plan else { return [] }
+        let byID = Dictionary(plan.items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var rows: [String: [PlanItem]] = [:]
+        for item in matching(isPending) where Self.isMixedFolder(item) == false {
+            var parent = item.parentID.flatMap { byID[$0] }
+            while let folder = parent, Self.isMixedFolder(folder) == false {
+                parent = folder.parentID.flatMap { byID[$0] }
+            }
+            rows[parent?.id ?? PendingGroup.topLevelID, default: []].append(item)
+        }
+        let visibleFolders = Set(matching { Self.isMixedFolder($0) && isPending($0) }.map(\.id))
+        var groups: [PendingGroup] = []
+        if let top = rows[PendingGroup.topLevelID] {
+            groups.append(PendingGroup(id: PendingGroup.topLevelID, folder: nil, title: "Üst seviye", items: top))
+        }
+        for folder in plan.items.filter(Self.isMixedFolder).sorted(by: { $0.relativePath < $1.relativePath }) {
+            let items = rows[folder.id] ?? []
+            if items.isEmpty == false || visibleFolders.contains(folder.id) {
+                groups.append(PendingGroup(id: folder.id, folder: folder, title: folder.relativePath, items: items))
+            }
+        }
+        return groups
+    }
+
     var pendingItems: [PlanItem] {
-        matching { pendingIDs.contains($0.id) || $0.status == .review || $0.status == .critical }
+        pendingGroups.flatMap(\.items)
+    }
+
+    /// Shown when the scan hit the item limit.
+    var scanNotice: String? {
+        plan?.truncated == true ? "5.000 öğe sınırına ulaşıldı; daha derindeki öğeler taranmadı." : nil
+    }
+
+    /// Items a kept folder carries along (its covered descendants), and how many of them are critical.
+    func coverage(of folder: PlanItem) -> FolderCoverage {
+        guard let plan, folder.folderMode == .keep else { return FolderCoverage(count: 0, critical: 0) }
+        let prefix = folder.relativePath + "/"
+        let inside = plan.items.filter { $0.covered && $0.relativePath.hasPrefix(prefix) }
+        return FolderCoverage(count: inside.count, critical: inside.filter { $0.critical || $0.status == .critical }.count)
     }
 
     var readyGroups: [CategoryGroup] {
@@ -63,9 +103,12 @@ final class PlanSession {
             .sorted { $0.id < $1.id }
     }
 
-    /// Visible pending rows that "Tümünü seç" may approve: critical items are always excluded.
+    /// Visible pending rows that "Tümünü seç" may approve: critical items, and kept folders carrying one, are excluded.
     private var selectablePendingItems: [PlanItem] {
-        pendingItems.filter { $0.critical == false && $0.status != .critical && $0.target != nil }
+        let carryingCritical = plan?.foldersCarryingCritical() ?? []
+        return pendingItems.filter {
+            $0.critical == false && $0.status != .critical && $0.target != nil && carryingCritical.contains($0.id) == false
+        }
     }
 
     var selectablePendingCount: Int {
@@ -290,6 +333,10 @@ final class PlanSession {
         edit { try PlanEditor.set(&$0, itemID: itemID, categoryID: nil, description: trimmed, approve: nil) }
     }
 
+    func setFolderMode(_ mode: FolderMode, for itemID: String) {
+        edit { try PlanEditor.setFolderMode(&$0, itemID: itemID, mode: mode) }
+    }
+
     func setApproved(_ approved: Bool, for itemID: String) {
         edit { try PlanEditor.set(&$0, itemID: itemID, categoryID: nil, description: nil, approve: approved) }
     }
@@ -349,6 +396,14 @@ final class PlanSession {
 
     private func approvedItems(in plan: Plan?) -> [PlanItem] {
         plan?.items.filter { $0.approved && $0.status != .skipped && $0.target != nil } ?? []
+    }
+
+    private func isPending(_ item: PlanItem) -> Bool {
+        pendingIDs.contains(item.id) || item.status == .review || item.status == .critical
+    }
+
+    private static func isMixedFolder(_ item: PlanItem) -> Bool {
+        item.kind == .folder && item.folderMode == .distribute && item.status != .skipped && item.covered == false
     }
 
     private func matching(_ predicate: (PlanItem) -> Bool) -> [PlanItem] {

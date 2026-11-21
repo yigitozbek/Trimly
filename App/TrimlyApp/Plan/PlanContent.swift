@@ -17,6 +17,10 @@ struct PlanContent: View {
             if session.canResume {
                 ResumeRow(resume: resume, rescan: rescan)
             }
+            if let notice = session.scanNotice {
+                Label(notice, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.secondary)
+            }
             PendingSection(session: session)
             ReadySection(session: session)
             SkippedSection(session: session)
