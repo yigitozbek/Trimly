@@ -1,7 +1,7 @@
 import SwiftUI
 import TrimlyCore
 
-/// Opening window: shortcuts for Desktop / Downloads / Documents / any folder, multi-select chips, last runs, Ollama status.
+/// Opening window: folder cards (open + multi-select), compact recent runs, status / settings.
 struct StartView: View {
     @Environment(\.appEnvironment) private var environment
     @Environment(\.openWindow) private var openWindow
@@ -13,69 +13,111 @@ struct StartView: View {
     @State private var selection = FolderPickerSelection()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Trimly")
-                    .font(.largeTitle.bold())
-                Text("Klasör seç veya birkaçını işaretle; önce önizleme gösterilir, hiçbir şey onayın olmadan taşınmaz.")
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 12) {
-                ShortcutButton(title: "Masaüstü", systemImage: "menubar.dock.rectangle", action: openDesktop)
-                ShortcutButton(title: "İndirilenler", systemImage: "arrow.down.circle", action: openDownloads)
-                ShortcutButton(title: "Belgeler", systemImage: "doc", action: openDocuments)
-                ShortcutButton(title: "Klasör seç…", systemImage: "folder.badge.plus", action: pickFolder)
-            }
-
-            GroupBox("Birlikte aç") {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 16) {
-                        Toggle("Masaüstü", isOn: $selection.desktop)
-                        Toggle("İndirilenler", isOn: $selection.downloads)
-                        Toggle("Belgeler", isOn: $selection.documents)
-                    }
-                    .toggleStyle(.checkbox)
-                    Button("Seçilenleri aç", systemImage: "rectangle.stack", action: openSelected)
-                        .disabled(selection.isEmpty)
-                        .help("Her klasör için ayrı plan penceresi açar.")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(4)
-            }
-
-            GroupBox("Son işlemler") {
-                if let runs {
-                    RunsList(model: runs)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(4)
-                }
-            }
-
-            HStack {
-                StatusBadge(status: status)
-                Spacer()
-                Button("Geçmiş", systemImage: "clock.arrow.circlepath", action: openHistory)
-                SettingsLink {
-                    Label("Ayarlar…", systemImage: "gearshape")
-                }
-            }
+        VStack(alignment: .leading, spacing: 24) {
+            header
+            folderSection
+            recentSection
+            footer
         }
-        .padding(24)
-        .frame(minWidth: 560, minHeight: 480)
+        .padding(28)
+        .frame(minWidth: 560, minHeight: 440)
         .fileImporter(isPresented: $isPickingFolder, allowedContentTypes: [.folder], onCompletion: folderPicked)
         .task(load)
         .onChange(of: launchState.launchedByURL, initial: true) { _, launchedByURL in
-            // The plan window already exists when this flips, so the app never passes through zero windows.
             if launchedByURL {
                 dismissWindow(id: "start")
             }
         }
     }
 
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Trimly")
+                .font(.largeTitle.bold())
+            Text("Nereyi düzenleyeceksin? Önizleme önce gelir; onayın olmadan hiçbir şey taşınmaz.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var folderSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                FolderCard(
+                    title: "Masaüstü",
+                    systemImage: "menubar.dock.rectangle",
+                    isSelected: $selection.desktop,
+                    open: openDesktop
+                )
+                FolderCard(
+                    title: "İndirilenler",
+                    systemImage: "arrow.down.circle",
+                    isSelected: $selection.downloads,
+                    open: openDownloads
+                )
+                FolderCard(
+                    title: "Belgeler",
+                    systemImage: "doc",
+                    isSelected: $selection.documents,
+                    open: openDocuments
+                )
+            }
+            HStack(spacing: 12) {
+                if selection.isEmpty == false {
+                    Button("Seçilenleri aç (\(selection.urls.count))", systemImage: "rectangle.stack", action: openSelected)
+                        .help("Her klasör için ayrı plan penceresi açar.")
+                }
+                Button("Başka klasör…", systemImage: "folder.badge.plus", action: pickFolder)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var recentSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Son işlemler")
+                    .font(.headline)
+                Spacer()
+                Button("Geçmiş", systemImage: "clock.arrow.circlepath", action: openHistory)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+            }
+            if let runs {
+                if runs.runs.isEmpty {
+                    Text("Henüz uygulanmış işlem yok.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(runs.runs) { run in
+                        StartRunRow(run: run, model: runs)
+                    }
+                }
+                if let undo = runs.lastUndo {
+                    Text("Geri yüklendi: \(undo.restored) öğe")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let message = runs.errorMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack {
+            StatusBadge(status: status)
+            Spacer()
+            SettingsLink {
+                Label("Ayarlar…", systemImage: "gearshape")
+            }
+        }
+    }
+
     private func load() async {
         if runs == nil {
-            runs = RunsModel(environment: environment, limit: 5)
+            runs = RunsModel(environment: environment, limit: 3)
         }
         await runs?.refresh()
         let settings = environment.loadSettings()
